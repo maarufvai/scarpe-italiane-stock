@@ -1,0 +1,79 @@
+{
+  "nav": {
+    "home": "Home",
+    "products": "Shop",
+    "cart": "Carrello",
+    "admin": "Admin"
+  },
+  "home": {
+    "hero_title": "Scarpe Italiane di Qualità",
+    "hero_subtitle": "Collezione esclusiva di calzature artigianali italiane",
+    "shop_now": "Acquista ora"
+  },
+  "product": {
+    "size": "Taglia",
+    "color": "Colore",
+    "add_to_cart": "Aggiungi al carrello",
+    "out_of_stock": "Esaurito",
+    "price_includes_vat": "IVA 22% inclusa"
+  },
+  "cart": {
+    "title": "Carrello",
+    "empty": "Il carrello è vuoto",
+    "total": "Totale",
+    "checkout": "Procedi al pagamento",
+    "remove": "Rimuovi"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "first_name": "Nome",
+    "last_name": "Cognome",
+    "email": "Email",
+    "phone": "Telefono",
+    "address": "Indirizzo",
+    "city": "Città",
+    "province": "Provincia",
+    "postal_code": "CAP",
+    "notes": "Note ordine",
+    "subtotal": "Subtotale",
+    "vat": "IVA (22%)",
+    "shipping": "Spedizione",
+    "total": "Totale",
+    "pay_stripe": "Paga con carta",
+    "pay_paypal": "Paga con PayPal"
+  },
+  "location": {
+    "title": "Dove siamo oggi",
+    "no_location": "Nessuna sede disponibile per questa data",
+    "open_maps": "Apri in Google Maps",
+    "note": "Note",
+    "select_date": "Seleziona una data"
+  },
+  "admin": {
+    "products": "Prodotti",
+    "orders": "Ordini",
+    "scanner": "Scanner",
+    "add_product": "Aggiungi prodotto",
+    "import_excel": "Importa Excel",
+    "generate_description": "Genera descrizione AI",
+    "location": "Gestisci sedi",
+    "location_date": "Data",
+    "location_address": "Indirizzo",
+    "location_lat": "Latitudine",
+    "location_lng": "Longitudine",
+    "location_note_it": "Nota (IT)",
+    "location_note_en": "Nota (EN)",
+    "location_save": "Salva sede",
+    "location_delete": "Elimina sede"
+  },
+  "common": {
+    "save": "Salva",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "search": "Cerca",
+    "loading": "Caricamento...",
+    "error": "Si è verificato un errore",
+    "success": "Operazione completata"
+  }
+}

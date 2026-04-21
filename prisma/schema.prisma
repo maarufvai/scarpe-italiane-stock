@@ -1,0 +1,184 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Auth (NextAuth) ────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(ADMIN)
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Catalog ────────────────────────────────────────────────────────────────
+
+model Product {
+  id          String           @id @default(cuid())
+  slug        String           @unique
+  nameIt      String
+  nameEn      String
+  descIt      String?          @db.Text
+  descEn      String?          @db.Text
+  brand       String
+  category    String
+  season      String?          // SUMMER | WINTER | RAINY
+  sale        Int              @default(0)  // discount %, 0 = no discount
+  barcode     String?          @unique
+  images      ProductImage[]
+  variants    ProductVariant[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  position  Int      @default(0)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductVariant {
+  id         String        @id @default(cuid())
+  productId  String
+  size       String
+  color      String
+  colorCode  String?       // hex, e.g. "#8B4513"
+  price      Int           // cents EUR, e.g. 9900 = €99.00
+  qty        Int           @default(0)
+  status     VariantStatus @default(LIVE)
+  orderItems OrderItem[]
+  product    Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([productId, size, color])
+}
+
+// ─── Orders ─────────────────────────────────────────────────────────────────
+
+model Order {
+  id              String        @id @default(cuid())
+  status          OrderStatus   @default(PENDING)
+  paymentMethod   PaymentMethod
+  paymentId       String?       // Stripe/PayPal transaction ID
+  subtotalCents   Int           // before VAT
+  vatCents        Int           // 22% IVA
+  totalCents      Int           // subtotal + VAT + shipping
+  shippingCents   Int           @default(0)
+  shippingCarrier String?       // BRT, GLS, Poste Italiane
+  trackingNumber  String?
+  // Customer info (guest checkout — no account required)
+  email           String
+  firstName       String
+  lastName        String
+  phone           String?
+  // Shipping address
+  addressLine1    String
+  addressLine2    String?
+  city            String
+  province        String        // Italian province code, e.g. "MI"
+  postalCode      String
+  country         String        @default("IT")
+  notes           String?       @db.Text
+  items           OrderItem[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model OrderItem {
+  id        String         @id @default(cuid())
+  orderId   String
+  variantId String
+  qty       Int
+  priceCents Int           // snapshot price at time of order
+  order     Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+}
+
+// ─── Shop Location ──────────────────────────────────────────────────────────
+
+model ShopLocation {
+  id        String   @id @default(cuid())
+  date      DateTime @unique @db.Date
+  address   String
+  lat       Float?
+  lng       Float?
+  noteIt    String?
+  noteEn    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+}
+
+enum VariantStatus {
+  LIVE
+  PAUSED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  STRIPE
+  PAYPAL
+}

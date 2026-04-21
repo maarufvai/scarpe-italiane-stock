@@ -1,0 +1,79 @@
+{
+  "nav": {
+    "home": "Home",
+    "products": "Shop",
+    "cart": "Cart",
+    "admin": "Admin"
+  },
+  "home": {
+    "hero_title": "Quality Italian Shoes",
+    "hero_subtitle": "Exclusive collection of Italian artisan footwear",
+    "shop_now": "Shop now"
+  },
+  "product": {
+    "size": "Size",
+    "color": "Color",
+    "add_to_cart": "Add to cart",
+    "out_of_stock": "Out of stock",
+    "price_includes_vat": "VAT 22% included"
+  },
+  "cart": {
+    "title": "Cart",
+    "empty": "Your cart is empty",
+    "total": "Total",
+    "checkout": "Proceed to checkout",
+    "remove": "Remove"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "first_name": "First name",
+    "last_name": "Last name",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "city": "City",
+    "province": "Province",
+    "postal_code": "Postal code",
+    "notes": "Order notes",
+    "subtotal": "Subtotal",
+    "vat": "VAT (22%)",
+    "shipping": "Shipping",
+    "total": "Total",
+    "pay_stripe": "Pay with card",
+    "pay_paypal": "Pay with PayPal"
+  },
+  "location": {
+    "title": "Where are we today",
+    "no_location": "No location set for this date",
+    "open_maps": "Open in Google Maps",
+    "note": "Note",
+    "select_date": "Select a date"
+  },
+  "admin": {
+    "products": "Products",
+    "orders": "Orders",
+    "scanner": "Scanner",
+    "add_product": "Add product",
+    "import_excel": "Import Excel",
+    "generate_description": "Generate AI description",
+    "location": "Manage locations",
+    "location_date": "Date",
+    "location_address": "Address",
+    "location_lat": "Latitude",
+    "location_lng": "Longitude",
+    "location_note_it": "Note (IT)",
+    "location_note_en": "Note (EN)",
+    "location_save": "Save location",
+    "location_delete": "Delete location"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Operation completed"
+  }
+}
