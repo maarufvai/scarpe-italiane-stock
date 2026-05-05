@@ -4,6 +4,6 @@ import { redirect } from "next/navigation";
 
 export async function requireAdmin(locale = "it") {
   const session = await getServerSession(authOptions);
-  if (!session) redirect(`/${locale}/admin/login`);
+  if (!session || session.user.role !== "ADMIN") redirect(`/${locale}/admin/login`);
   return session;
 }

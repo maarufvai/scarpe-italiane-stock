@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Login required" }, { status: 401 });
+
   const body = await req.json();
   const {
-    items, // [{ variantId, qty, priceCents }]
+    items,
     paymentMethod, paymentId,
     email, firstName, lastName, phone,
     addressLine1, addressLine2, city, province, postalCode, notes,
@@ -15,7 +20,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  // Verify stock + compute totals server-side
   const variantIds = items.map((i: { variantId: string }) => i.variantId);
   const variants = await prisma.productVariant.findMany({ where: { id: { in: variantIds } } });
 
@@ -26,7 +30,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Compute price from DB — never trust client-supplied priceCents
   const subtotalCents = items.reduce(
     (s: number, i: { qty: number; variantId: string }) => {
       const v = variants.find((v) => v.id === i.variantId);
@@ -36,7 +39,6 @@ export async function POST(req: NextRequest) {
   const vatCents = Math.round(subtotalCents * 0.22);
   const totalCents = subtotalCents + vatCents + shippingCents;
 
-  // Create order + deduct stock in transaction
   const order = await prisma.$transaction(async (tx) => {
     const o = await tx.order.create({
       data: {
@@ -47,6 +49,7 @@ export async function POST(req: NextRequest) {
         vatCents,
         totalCents,
         shippingCents,
+        userId: session.user.id,
         email, firstName, lastName,
         phone: phone || null,
         addressLine1,
@@ -63,7 +66,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Deduct stock
     for (const item of items) {
       await tx.productVariant.update({
         where: { id: item.variantId },

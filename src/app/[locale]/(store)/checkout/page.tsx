@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart, cartTotals } from "@/lib/cart-store";
+import { useSession } from "next-auth/react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -12,8 +13,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
-import { Package, ChevronLeft, Loader2, CreditCard, AlertTriangle } from "lucide-react";
+import { Package, ChevronLeft, Loader2, AlertTriangle } from "lucide-react";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -31,7 +31,7 @@ const labels = {
     subtotal: "Subtotale", vat: "IVA (22%)",
     shipping: "Spedizione", free: "Gratuita", total: "Totale",
     payment: "Pagamento",
-    payStripe: "Paga con carta", payPaypal: "Paga con PayPal",
+    payStripe: "Paga con carta",
     processing: "Elaborazione...",
     cartEmpty: "Il carrello è vuoto.",
     vatNote: "IVA 22% inclusa",
@@ -51,7 +51,7 @@ const labels = {
     subtotal: "Subtotal", vat: "VAT (22%)",
     shipping: "Shipping", free: "Free", total: "Total",
     payment: "Payment",
-    payStripe: "Pay with card", payPaypal: "Pay with PayPal",
+    payStripe: "Pay with card",
     processing: "Processing...",
     cartEmpty: "Cart is empty.",
     vatNote: "VAT 22% included",
@@ -78,14 +78,37 @@ export default function CheckoutPage() {
   const locale = pathname.startsWith("/en") ? "en" : "it";
   const l = labels[locale];
   const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
   const { items, clear } = useCart();
   const { subtotalCents, vatCents, totalCents } = cartTotals(items);
   const [form, setForm] = useState<CustomerForm>(emptyForm());
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "paypal">("stripe");
   const [loadingIntent, setLoadingIntent] = useState(false);
   const [stockIssues, setStockIssues] = useState(false);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (sessionStatus === "unauthenticated") {
+      router.push(`/${locale}/account/login?redirect=/${locale}/checkout`);
+    }
+  }, [sessionStatus, locale, router]);
+
+  // Pre-fill email from session
+  useEffect(() => {
+    if (session?.user?.email) {
+      setForm((f) => ({ ...f, email: session.user.email }));
+    }
+    if (session?.user?.name) {
+      const parts = session.user.name.split(" ");
+      setForm((f) => ({
+        ...f,
+        firstName: f.firstName || parts[0] || "",
+        lastName: f.lastName || parts.slice(1).join(" ") || "",
+      }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
 
   function setField(k: keyof CustomerForm, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -106,9 +129,9 @@ export default function CheckoutPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Create Stripe intent when form valid + stripe selected
+  // Create Stripe intent when form valid
   useEffect(() => {
-    if (!formValid || paymentMethod !== "stripe" || clientSecret) return;
+    if (!formValid || clientSecret) return;
     setLoadingIntent(true);
     fetch("/api/checkout/stripe", {
       method: "POST",
@@ -122,7 +145,7 @@ export default function CheckoutPage() {
       })
       .finally(() => setLoadingIntent(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formValid, paymentMethod]);
+  }, [formValid]);
 
   async function createOrder(payId: string, method: "STRIPE" | "PAYPAL") {
     const res = await fetch("/api/orders", {
@@ -140,6 +163,14 @@ export default function CheckoutPage() {
       clear();
       router.push(`/${locale}/ordine/${data.orderId}`);
     }
+  }
+
+  if (sessionStatus === "loading") {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-6 h-6 animate-spin text-stone-400" />
+      </div>
+    );
   }
 
   if (items.length === 0) {
@@ -210,81 +241,28 @@ export default function CheckoutPage() {
           <section className={`flex flex-col gap-4 transition-opacity ${stockIssues ? "opacity-40 pointer-events-none select-none" : ""}`}>
             <h2 className="text-sm font-semibold uppercase tracking-widest text-stone-400">{l.payment}</h2>
 
-            {/* Method tabs */}
-            <div className="flex gap-2">
-              {(["stripe", "paypal"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => { setPaymentMethod(m); setClientSecret(null); }}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                    paymentMethod === m
-                      ? "border-stone-900 bg-stone-900 text-white"
-                      : "border-stone-200 text-stone-600 hover:border-stone-400"
-                  }`}
-                >
-                  {m === "stripe" ? <CreditCard className="w-4 h-4" /> : <span className="text-base">🅿</span>}
-                  {m === "stripe" ? l.payStripe : l.payPaypal}
-                </button>
-              ))}
+            <div className="bg-white rounded-2xl border border-stone-200 p-5">
+              {!formValid ? (
+                <p className="text-sm text-stone-400 text-center py-4">
+                  {locale === "it" ? "Compila i dati sopra per procedere" : "Fill in the form above to continue"}
+                </p>
+              ) : loadingIntent ? (
+                <div className="flex items-center justify-center py-6 gap-2 text-stone-400">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">{l.processing}</span>
+                </div>
+              ) : clientSecret ? (
+                <Elements stripe={stripePromise} options={{ clientSecret, locale: locale === "it" ? "it" : "en" }}>
+                  <StripeForm
+                    clientSecret={clientSecret}
+                    paymentIntentId={paymentIntentId!}
+                    onSuccess={(pid) => createOrder(pid, "STRIPE")}
+                    label={l.payStripe}
+                    processing={l.processing}
+                  />
+                </Elements>
+              ) : null}
             </div>
-
-            {/* Stripe */}
-            {paymentMethod === "stripe" && (
-              <div className="bg-white rounded-2xl border border-stone-200 p-5">
-                {!formValid ? (
-                  <p className="text-sm text-stone-400 text-center py-4">
-                    {locale === "it" ? "Compila i dati sopra per procedere" : "Fill in the form above to continue"}
-                  </p>
-                ) : loadingIntent ? (
-                  <div className="flex items-center justify-center py-6 gap-2 text-stone-400">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">{l.processing}</span>
-                  </div>
-                ) : clientSecret ? (
-                  <Elements stripe={stripePromise} options={{ clientSecret, locale: locale === "it" ? "it" : "en" }}>
-                    <StripeForm
-                      clientSecret={clientSecret}
-                      paymentIntentId={paymentIntentId!}
-                      onSuccess={(pid) => createOrder(pid, "STRIPE")}
-                      label={l.payStripe}
-                      processing={l.processing}
-                    />
-                  </Elements>
-                ) : null}
-              </div>
-            )}
-
-            {/* PayPal */}
-            {paymentMethod === "paypal" && (
-              <div className="bg-white rounded-2xl border border-stone-200 p-5">
-                {!formValid ? (
-                  <p className="text-sm text-stone-400 text-center py-4">
-                    {locale === "it" ? "Compila i dati sopra per procedere" : "Fill in the form above to continue"}
-                  </p>
-                ) : (
-                  <PayPalScriptProvider options={{
-                    clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID!,
-                    currency: "EUR",
-                  }}>
-                    <PayPalButtons
-                      style={{ layout: "vertical", shape: "pill" }}
-                      createOrder={(_data, actions) =>
-                        actions.order.create({
-                          intent: "CAPTURE",
-                          purchase_units: [{
-                            amount: { currency_code: "EUR", value: (totalCents / 100).toFixed(2) },
-                          }],
-                        })
-                      }
-                      onApprove={async (_data, actions) => {
-                        const details = await actions.order!.capture();
-                        await createOrder(details.id!, "PAYPAL");
-                      }}
-                    />
-                  </PayPalScriptProvider>
-                )}
-              </div>
-            )}
           </section>
         </div>
 

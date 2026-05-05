@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
-  Package, ShoppingBag, MapPin, ScanBarcode, LogOut, LayoutDashboard,
+  Package, ShoppingBag, MapPin, ScanBarcode, LogOut, LayoutDashboard, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
@@ -13,6 +13,7 @@ const labels = {
   it: {
     products: "Prodotti",
     orders: "Ordini",
+    customers: "Clienti",
     locations: "Sedi",
     scanner: "Scanner",
     viewStore: "Vedi negozio",
@@ -22,6 +23,7 @@ const labels = {
   en: {
     products: "Products",
     orders: "Orders",
+    customers: "Customers",
     locations: "Locations",
     scanner: "Scanner",
     viewStore: "View store",
@@ -33,6 +35,7 @@ const labels = {
 const navItems = (locale: string, t: typeof labels["it"]) => [
   { href: `/${locale}/admin/prodotti`, icon: Package, label: t.products },
   { href: `/${locale}/admin/ordini`, icon: ShoppingBag, label: t.orders },
+  { href: `/${locale}/admin/clienti`, icon: Users, label: t.customers },
   { href: `/${locale}/admin/location`, icon: MapPin, label: t.locations },
   { href: `/${locale}/admin/scanner`, icon: ScanBarcode, label: t.scanner },
 ];

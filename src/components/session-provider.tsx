@@ -5,10 +5,10 @@ import type { Session } from "next-auth";
 
 export function SessionProvider({
   children,
-  session,
+  session = null,
 }: {
   children: React.ReactNode;
-  session: Session | null;
+  session?: Session | null;
 }) {
   return (
     <NextAuthSessionProvider session={session}>

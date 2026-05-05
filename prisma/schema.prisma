@@ -16,9 +16,11 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
-  role          Role      @default(ADMIN)
+  passwordHash  String?
+  role          Role      @default(CUSTOMER)
   accounts      Account[]
   sessions      Session[]
+  orders        Order[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -115,7 +117,10 @@ model Order {
   shippingCents   Int           @default(0)
   shippingCarrier String?       // BRT, GLS, Poste Italiane
   trackingNumber  String?
-  // Customer info (guest checkout — no account required)
+  // Linked account (optional — guest checkout still works)
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  // Customer info
   email           String
   firstName       String
   lastName        String
@@ -161,6 +166,7 @@ model ShopLocation {
 
 enum Role {
   ADMIN
+  CUSTOMER
 }
 
 enum VariantStatus {

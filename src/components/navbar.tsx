@@ -4,10 +4,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
-import { ShoppingBag, Menu, X } from "lucide-react";
+import { ShoppingBag, Menu, X, UserCircle, LogIn } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/lib/cart-store";
 import { ThemeToggle } from "./theme-toggle";
+import { useSession } from "next-auth/react";
 
 export function Navbar() {
   const locale = useLocale();
@@ -15,6 +16,7 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
   const cartCount = useCart((s) => s.items.reduce((sum, i) => sum + i.qty, 0));
   const openCart = useCart((s) => s.openCart);
+  const { data: session } = useSession();
 
   const pathname = usePathname();
   const otherLocale = locale === "it" ? "en" : "it";
@@ -59,6 +61,35 @@ export function Navbar() {
 
           <ThemeToggle />
 
+          {/* Account */}
+          {session ? (
+            <Link
+              href={`/${locale}/account/ordini`}
+              className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
+              aria-label={locale === "it" ? "Il mio account" : "My account"}
+            >
+              {session.user.image ? (
+                <Image
+                  src={session.user.image}
+                  alt={session.user.name ?? "Account"}
+                  width={28}
+                  height={28}
+                  className="rounded-full"
+                />
+              ) : (
+                <UserCircle className="w-5 h-5 text-stone-700 dark:text-stone-300" />
+              )}
+            </Link>
+          ) : (
+            <Link
+              href={`/${locale}/account/login`}
+              className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
+              aria-label={locale === "it" ? "Accedi" : "Sign in"}
+            >
+              <LogIn className="w-5 h-5 text-stone-700 dark:text-stone-300" />
+            </Link>
+          )}
+
           {/* Cart */}
           <button
             onClick={openCart}
@@ -93,6 +124,15 @@ export function Navbar() {
             onClick={() => setOpen(false)}
           >
             {t("products")}
+          </Link>
+          <Link
+            href={session ? `/${locale}/account/ordini` : `/${locale}/account/login`}
+            className="text-sm font-medium text-stone-700 py-2"
+            onClick={() => setOpen(false)}
+          >
+            {session
+              ? (locale === "it" ? "Il mio account" : "My account")
+              : (locale === "it" ? "Accedi" : "Sign in")}
           </Link>
           <button
             className="text-sm font-medium text-stone-700 py-2 text-left"
