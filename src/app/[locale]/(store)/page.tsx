@@ -9,11 +9,12 @@ export default async function HomePage() {
   const t = await getTranslations();
   const locale = await getLocale();
 
-  const markedLocations = await prisma.shopLocation.findMany({
-    select: { date: true },
-    orderBy: { date: "asc" },
-  });
+  const [markedLocations, scheduleSetting] = await Promise.all([
+    prisma.shopLocation.findMany({ select: { date: true }, orderBy: { date: "asc" } }),
+    prisma.siteSetting.findUnique({ where: { key: "monthly_schedule_url" } }),
+  ]);
   const markedDates = markedLocations.map((l) => l.date.toISOString());
+  const scheduleUrl = scheduleSetting?.value ?? null;
   const isIt = locale === "it";
 
   const marqueeItems = [
@@ -263,6 +264,39 @@ export default async function HomePage() {
               </p>
             </div>
             <ShopLocationWidget markedDates={markedDates} />
+
+            {scheduleUrl && (
+              <div className="flex flex-col gap-4 mt-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-px w-8 bg-[#2d6a4f]" />
+                  <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#2d6a4f]">
+                    {isIt ? "Programma del mese" : "Monthly schedule"}
+                  </p>
+                </div>
+                <p className="text-sm text-stone-500 dark:text-stone-400">
+                  {isIt
+                    ? "Ecco dove ci troverete durante il mese."
+                    : "Here is where you can find us throughout the month."}
+                </p>
+                {scheduleUrl.endsWith(".pdf") ? (
+                  <div className="rounded-xl overflow-hidden border border-stone-200 dark:border-stone-700 shadow-sm">
+                    <iframe
+                      src={scheduleUrl}
+                      width="100%"
+                      height="600"
+                      style={{ border: 0 }}
+                      title="Monthly schedule PDF"
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src={scheduleUrl}
+                    alt={isIt ? "Programma mensile" : "Monthly schedule"}
+                    className="rounded-xl border border-stone-200 dark:border-stone-700 shadow-sm w-full object-contain max-h-[600px]"
+                  />
+                )}
+              </div>
+            )}
           </div>
         </ScrollReveal>
       </section>

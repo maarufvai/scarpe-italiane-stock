@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
-  Package, ShoppingBag, MapPin, ScanBarcode, LogOut, LayoutDashboard, Users,
+  Package, ShoppingBag, MapPin, ScanBarcode, LogOut, LayoutDashboard, Users, Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
@@ -16,6 +16,7 @@ const labels = {
     customers: "Clienti",
     locations: "Sedi",
     scanner: "Scanner",
+    options: "Opzioni",
     viewStore: "Vedi negozio",
     logout: "Esci",
     language: "Lingua",
@@ -26,6 +27,7 @@ const labels = {
     customers: "Customers",
     locations: "Locations",
     scanner: "Scanner",
+    options: "Options",
     viewStore: "View store",
     logout: "Sign out",
     language: "Language",
@@ -38,6 +40,7 @@ const navItems = (locale: string, t: typeof labels["it"]) => [
   { href: `/${locale}/admin/clienti`, icon: Users, label: t.customers },
   { href: `/${locale}/admin/location`, icon: MapPin, label: t.locations },
   { href: `/${locale}/admin/scanner`, icon: ScanBarcode, label: t.scanner },
+  { href: `/${locale}/admin/opzioni`, icon: Settings2, label: t.options },
 ];
 
 export function AdminSidebar({ locale }: { locale: string }) {
@@ -64,7 +67,7 @@ export function AdminSidebar({ locale }: { locale: string }) {
           </svg>
         </div>
         <div className="flex flex-col leading-none min-w-0">
-          <span className="text-xs font-bold text-stone-900 truncate">Scarpe Italiane</span>
+          <span className="text-xs font-bold text-stone-900 whitespace-nowrap">Scarpe Italiane Stock</span>
           <span className="text-[9px] font-semibold tracking-widest text-stone-400 uppercase">Admin</span>
         </div>
       </div>

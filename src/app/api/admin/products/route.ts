@@ -31,11 +31,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { nameIt, nameEn, descIt, descEn, brand, category, season, sale, barcode, variants, images } = body;
 
-  if (!nameIt || !nameEn || !brand || !category) {
-    return NextResponse.json({ error: "nameIt, nameEn, brand, category required" }, { status: 400 });
-  }
-
-  const baseSlug = slugify(`${brand}-${nameEn}`);
+  const baseSlug = slugify(`${brand || ""}-${nameEn || ""}-${Date.now()}`) || `product-${Date.now()}`;
   let slug = baseSlug;
   let suffix = 1;
   while (await prisma.product.findUnique({ where: { slug } })) {
@@ -45,12 +41,12 @@ export async function POST(req: NextRequest) {
   const product = await prisma.product.create({
     data: {
       slug,
-      nameIt,
-      nameEn,
+      nameIt: nameIt || "",
+      nameEn: nameEn || "",
       descIt: descIt || null,
       descEn: descEn || null,
-      brand,
-      category,
+      brand: brand || "",
+      category: category || "",
       season: season || null,
       sale: sale ?? 0,
       barcode: barcode || null,

@@ -19,11 +19,17 @@ function emptyVariant(): VariantForm {
 export function ProductDialog({
   product,
   t,
+  brands,
+  categories,
+  colors,
   onClose,
   onSaved,
 }: {
   product: Product | null;
   t: T;
+  brands: string[];
+  categories: string[];
+  colors: { name: string; hex: string }[];
   onClose: () => void;
   onSaved: (p: Product) => void;
 }) {
@@ -77,7 +83,7 @@ export function ProductDialog({
   }
 
   async function save() {
-    if (!form.nameIt || !form.nameEn || !form.brand || !form.category || !form.price) return;
+    if (!form.price) return;
     setSaving(true);
 
     const payload = {
@@ -85,11 +91,11 @@ export function ProductDialog({
       sale: Math.round(parseFloat(form.sale) * 100) || 0,
       barcode: form.barcode || null,
       variants: variants
-        .filter((v) => v.size && v.color)
+        .filter((v) => v.size || v.color || parseInt(v.qty) > 0)
         .map((v) => ({
           id: v.id,
-          size: v.size,
-          color: v.color,
+          size: v.size || "",
+          color: v.color || "",
           colorCode: v.colorCode || null,
           price: Math.round(parseFloat(form.price) * 100),
           qty: parseInt(v.qty) || 0,
@@ -122,7 +128,7 @@ export function ProductDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
 
         {/* Header */}
@@ -142,8 +148,34 @@ export function ProductDialog({
             <div className="grid grid-cols-2 gap-3">
               <Field label={t.nameIt} value={form.nameIt} onChange={(v) => setField("nameIt", v)} placeholder="Mocassino artigianale" />
               <Field label={t.nameEn} value={form.nameEn} onChange={(v) => setField("nameEn", v)} placeholder="Artisan loafer" />
-              <Field label={t.brand_label} value={form.brand} onChange={(v) => setField("brand", v)} placeholder="Gucci" />
-              <Field label={t.category} value={form.category} onChange={(v) => setField("category", v)} placeholder="Mocassini" />
+              <label className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+                <span className="text-xs font-medium text-stone-600">{t.brand_label}</span>
+                <select
+                  value={form.brand}
+                  onChange={(e) => setField("brand", e.target.value)}
+                  className="rounded-lg border border-stone-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50"
+                >
+                  <option value="">— seleziona / select —</option>
+                  {brands.map((b) => <option key={b} value={b}>{b}</option>)}
+                  {form.brand && !brands.includes(form.brand) && (
+                    <option value={form.brand}>{form.brand} (custom)</option>
+                  )}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+                <span className="text-xs font-medium text-stone-600">{t.category}</span>
+                <select
+                  value={form.category}
+                  onChange={(e) => setField("category", e.target.value)}
+                  className="rounded-lg border border-stone-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50"
+                >
+                  <option value="">— seleziona / select —</option>
+                  {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {form.category && !categories.includes(form.category) && (
+                    <option value={form.category}>{form.category} (custom)</option>
+                  )}
+                </select>
+              </label>
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-stone-600">{t.price} (€)</span>
                 <input
@@ -236,16 +268,32 @@ export function ProductDialog({
                     <input value={v.size} onChange={(e) => setVariantField(i, "size", e.target.value)}
                       placeholder="42" className="input-sm w-full" />
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-4">
                     <label className="text-[10px] font-medium text-stone-500 block mb-1">{t.color}</label>
-                    <input value={v.color} onChange={(e) => setVariantField(i, "color", e.target.value)}
-                      placeholder="Nero" className="input-sm w-full" />
-                  </div>
-                  <div className="col-span-1">
-                    <label className="text-[10px] font-medium text-stone-500 block mb-1">{t.hex}</label>
-                    <input type="color" value={v.colorCode}
-                      onChange={(e) => setVariantField(i, "colorCode", e.target.value)}
-                      className="h-8 w-full rounded cursor-pointer border border-stone-200" />
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="w-6 h-6 rounded-full border border-stone-200 shrink-0"
+                        style={{ backgroundColor: v.colorCode || "#ccc" }}
+                      />
+                      <select
+                        value={v.color}
+                        onChange={(e) => {
+                          const selected = colors.find((c) => c.name === e.target.value);
+                          setVariants((vs) => vs.map((vr, idx) =>
+                            idx === i
+                              ? { ...vr, color: e.target.value, colorCode: selected?.hex ?? vr.colorCode }
+                              : vr
+                          ));
+                        }}
+                        className="input-sm flex-1 min-w-0"
+                      >
+                        <option value="">— colore —</option>
+                        {colors.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+                        {v.color && !colors.find((c) => c.name === v.color) && (
+                          <option value={v.color}>{v.color} (custom)</option>
+                        )}
+                      </select>
+                    </div>
                   </div>
                   <div className="col-span-1">
                     <label className="text-[10px] font-medium text-stone-500 block mb-1">{t.qty}</label>
@@ -267,12 +315,12 @@ export function ProductDialog({
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-stone-100 sticky bottom-0 bg-white">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-stone-600 hover:text-stone-900 transition-colors">
-            {t.cancel}
+          <button onClick={onClose} className="px-4 py-2 text-sm text-red-500 hover:text-red-700 transition-colors">
+            Esci senza salvare / Exit without saving
           </button>
           <button
             onClick={save}
-            disabled={saving || !form.nameIt || !form.nameEn || !form.brand || !form.category || !form.price}
+            disabled={saving || !form.price}
             className="flex items-center gap-2 bg-stone-900 hover:bg-stone-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}

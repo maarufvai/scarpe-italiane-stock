@@ -36,10 +36,7 @@ export function Navbar() {
             className="h-12 w-auto object-contain"
             priority
           />
-          <div className="flex flex-col leading-none">
-            <span className="text-sm font-bold tracking-tight text-stone-900 dark:text-stone-100">Scarpe Italiane</span>
-            <span className="text-[10px] font-medium tracking-widest text-stone-400 dark:text-stone-500 uppercase">Stock</span>
-          </div>
+          <span className="text-sm font-bold tracking-tight text-stone-900 dark:text-stone-100 whitespace-nowrap">Scarpe Italiane Stock</span>
         </Link>
 
         {/* Desktop nav */}

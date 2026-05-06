@@ -162,6 +162,32 @@ model ShopLocation {
   updatedAt DateTime @updatedAt
 }
 
+// ─── Options (admin-managed lists) ──────────────────────────────────────────
+
+model Brand {
+  id   String @id @default(cuid())
+  name String @unique
+}
+
+model Category {
+  id   String @id @default(cuid())
+  name String @unique
+}
+
+model Color {
+  id   String @id @default(cuid())
+  name String @unique
+  hex  String @default("#000000")
+}
+
+// ─── Site Settings ──────────────────────────────────────────────────────────
+
+model SiteSetting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}
+
 // ─── Enums ──────────────────────────────────────────────────────────────────
 
 enum Role {

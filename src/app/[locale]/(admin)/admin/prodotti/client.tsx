@@ -20,7 +20,17 @@ export type Product = {
   createdAt: Date;
 };
 
-export function ProductsClient({ products: initial }: { products: Product[] }) {
+export function ProductsClient({
+  products: initial,
+  brands,
+  categories,
+  colors,
+}: {
+  products: Product[];
+  brands: string[];
+  categories: string[];
+  colors: { name: string; hex: string }[];
+}) {
   const locale = useAdminLocale();
   const t = adminT[locale];
   const [products, setProducts] = useState(initial);
@@ -183,6 +193,9 @@ export function ProductsClient({ products: initial }: { products: Product[] }) {
         <ProductDialog
           product={editProduct}
           t={t}
+          brands={brands}
+          categories={categories}
+          colors={colors}
           onClose={() => { setShowAdd(false); setEditProduct(null); }}
           onSaved={onSaved}
         />

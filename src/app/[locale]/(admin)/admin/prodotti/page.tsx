@@ -7,13 +7,22 @@ export default async function ProdottiPage() {
   const locale = await getLocale();
   await requireAdmin(locale);
 
-  const products = await prisma.product.findMany({
-    include: {
-      images: { orderBy: { position: "asc" }, take: 1 },
-      variants: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const [products, brands, categories, colors] = await Promise.all([
+    prisma.product.findMany({
+      include: { images: { orderBy: { position: "asc" }, take: 1 }, variants: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.brand.findMany({ orderBy: { name: "asc" } }),
+    prisma.category.findMany({ orderBy: { name: "asc" } }),
+    prisma.color.findMany({ orderBy: { name: "asc" } }),
+  ]);
 
-  return <ProductsClient products={products} />;
+  return (
+    <ProductsClient
+      products={products}
+      brands={brands.map((b) => b.name)}
+      categories={categories.map((c) => c.name)}
+      colors={colors.map((c) => ({ name: c.name, hex: c.hex }))}
+    />
+  );
 }

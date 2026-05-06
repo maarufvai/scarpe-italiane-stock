@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Calendar } from "@/components/ui/calendar";
-import { MapPin, Trash2, Save, Loader2 } from "lucide-react";
+import { MapPin, Trash2, Save, Loader2, Upload, FileText, Image as ImageIcon, X } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const MapPicker = dynamic(
@@ -27,11 +27,17 @@ function toDateString(d: Date) {
 
 export function AdminLocationClient({
   locations: initial,
+  scheduleUrl: initialScheduleUrl,
 }: {
   locations: ShopLocation[];
+  scheduleUrl: string | null;
 }) {
   const t = useTranslations("admin");
   const [locations, setLocations] = useState(initial);
+  const [scheduleUrl, setScheduleUrl] = useState<string | null>(initialScheduleUrl);
+  const [scheduleUploading, setScheduleUploading] = useState(false);
+  const [scheduleDeleting, setScheduleDeleting] = useState(false);
+  const scheduleFileRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<Date>(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -114,6 +120,38 @@ export function AdminLocationClient({
   }
 
   const hasExisting = markedSet.has(toDateString(selected));
+
+  async function uploadSchedule(files: FileList) {
+    const file = files[0];
+    if (!file) return;
+    setScheduleUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/upload-schedule", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.url) {
+        await fetch("/api/admin/monthly-schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: data.url }),
+        });
+        setScheduleUrl(data.url);
+      }
+    } finally {
+      setScheduleUploading(false);
+    }
+  }
+
+  async function deleteSchedule() {
+    setScheduleDeleting(true);
+    try {
+      await fetch("/api/admin/monthly-schedule", { method: "DELETE" });
+      setScheduleUrl(null);
+    } finally {
+      setScheduleDeleting(false);
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col gap-8">
@@ -263,6 +301,86 @@ export function AdminLocationClient({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Monthly schedule upload */}
+      <div className="rounded-xl border bg-white shadow-sm p-5 flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-base font-semibold text-zinc-900">Programma mensile / Monthly schedule</h2>
+          <p className="text-xs text-zinc-400">
+            Carica un&apos;immagine o PDF con le sedi del mese. Sarà visibile nella homepage.
+            / Upload an image or PDF with monthly locations. Shown on homepage.
+          </p>
+        </div>
+
+        {scheduleUrl ? (
+          <div className="flex flex-col gap-3">
+            {scheduleUrl.endsWith(".pdf") ? (
+              <div className="flex items-center gap-3 rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                <FileText className="w-5 h-5 text-red-500 shrink-0" />
+                <a
+                  href={scheduleUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline truncate flex-1"
+                >
+                  Visualizza PDF / View PDF
+                </a>
+              </div>
+            ) : (
+              <img
+                src={scheduleUrl}
+                alt="Monthly schedule"
+                className="rounded-lg border border-stone-200 max-h-64 object-contain"
+              />
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => scheduleFileRef.current?.click()}
+                disabled={scheduleUploading}
+                className="flex items-center gap-2 rounded-lg border border-stone-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-stone-50 disabled:opacity-50 transition-colors"
+              >
+                {scheduleUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                Sostituisci / Replace
+              </button>
+              <button
+                onClick={deleteSchedule}
+                disabled={scheduleDeleting}
+                className="flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+              >
+                {scheduleDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                Rimuovi / Remove
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => scheduleFileRef.current?.click()}
+            disabled={scheduleUploading}
+            className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-200 hover:border-stone-400 py-10 text-stone-400 hover:text-stone-600 transition-colors disabled:opacity-50"
+          >
+            {scheduleUploading ? (
+              <Loader2 className="w-6 h-6 animate-spin" />
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <ImageIcon className="w-5 h-5" />
+                  <FileText className="w-5 h-5" />
+                </div>
+                <span className="text-sm">Carica immagine o PDF / Upload image or PDF</span>
+                <span className="text-xs">Max 20 MB</span>
+              </>
+            )}
+          </button>
+        )}
+
+        <input
+          ref={scheduleFileRef}
+          type="file"
+          accept="image/*,application/pdf"
+          className="hidden"
+          onChange={(e) => e.target.files && uploadSchedule(e.target.files)}
+        />
       </div>
     </div>
   );

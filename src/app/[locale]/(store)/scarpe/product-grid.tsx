@@ -24,6 +24,7 @@ const t = {
     title: "Shop", items: "articoli", filters: "Filtri",
     clearAll: "Azzera filtri", price: "Prezzo", season: "Stagione",
     color: "Colore", size: "Taglia", allSeasons: "Tutte",
+    brand: "Brand", category: "Categoria", all: "Tutti",
     noProducts: "Nessun prodotto trovato.",
     onSale: "In saldo", onSaleOnly: "Solo in saldo",
   },
@@ -31,15 +32,27 @@ const t = {
     title: "Shop", items: "items", filters: "Filters",
     clearAll: "Clear filters", price: "Price", season: "Season",
     color: "Color", size: "Size", allSeasons: "All",
+    brand: "Brand", category: "Category", all: "All",
     noProducts: "No products found.",
     onSale: "On sale", onSaleOnly: "On sale only",
   },
 } as const;
 
-export function ProductGrid({ products, locale }: { products: Product[]; locale: string }) {
+export function ProductGrid({
+  products,
+  locale,
+  brandOptions,
+  categoryOptions,
+  colorOptions,
+}: {
+  products: Product[];
+  locale: string;
+  brandOptions: string[];
+  categoryOptions: string[];
+  colorOptions: { name: string; hex: string }[];
+}) {
   const l = locale === "en" ? t.en : t.it;
 
-  // Derive filter options from products
   const allPrices = products.flatMap((p) => p.variants.map((v) => v.price));
   const globalMin = allPrices.length ? Math.min(...allPrices) : 0;
   const globalMax = allPrices.length ? Math.max(...allPrices) : 100000;
@@ -48,48 +61,45 @@ export function ProductGrid({ products, locale }: { products: Product[]; locale:
     () => [...new Set(products.flatMap((p) => p.variants.map((v) => v.size)))].sort((a, b) => parseFloat(a) - parseFloat(b)),
     [products]
   );
-  const allColors = useMemo(() => {
-    const map = new Map<string, string>();
-    products.forEach((p) =>
-      p.variants.forEach((v) => { if (v.colorCode) map.set(v.colorCode, v.color); })
-    );
-    return [...map.entries()].map(([code, name]) => ({ code, name }));
-  }, [products]);
 
   // Filter state
   const [priceRange, setPriceRange] = useState<[number, number]>([globalMin, globalMax]);
   const [season, setSeason] = useState("");
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [onSaleOnly, setOnSaleOnly] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const hasFilters = season || selectedColors.length || selectedSizes.length || onSaleOnly ||
+  const hasFilters = season || selectedBrands.length || selectedCategories.length ||
+    selectedColors.length || selectedSizes.length || onSaleOnly ||
     priceRange[0] > globalMin || priceRange[1] < globalMax;
 
   function clearAll() {
     setPriceRange([globalMin, globalMax]);
     setSeason("");
+    setSelectedBrands([]);
+    setSelectedCategories([]);
     setSelectedColors([]);
     setSelectedSizes([]);
     setOnSaleOnly(false);
   }
 
-  function toggleColor(code: string) {
-    setSelectedColors((prev) => prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]);
-  }
-  function toggleSize(size: string) {
-    setSelectedSizes((prev) => prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]);
+  function toggle<T>(setter: React.Dispatch<React.SetStateAction<T[]>>, val: T) {
+    setter((prev) => prev.includes(val) ? prev.filter((x) => x !== val) : [...prev, val]);
   }
 
   const filtered = useMemo(() => products.filter((p) => {
     if (onSaleOnly && p.sale <= 0) return false;
     if (season && p.season !== season) return false;
+    if (selectedBrands.length && !selectedBrands.includes(p.brand)) return false;
+    if (selectedCategories.length && !selectedCategories.includes(p.category)) return false;
     const variantPrices = p.variants.map((v) => v.price);
     const minP = Math.min(...variantPrices);
     if (minP < priceRange[0] || minP > priceRange[1]) return false;
     if (selectedColors.length) {
-      const pColors = new Set(p.variants.map((v) => v.colorCode).filter(Boolean));
+      const pColors = new Set(p.variants.map((v) => v.color));
       if (!selectedColors.some((c) => pColors.has(c))) return false;
     }
     if (selectedSizes.length) {
@@ -97,7 +107,7 @@ export function ProductGrid({ products, locale }: { products: Product[]; locale:
       if (!selectedSizes.some((s) => pSizes.has(s))) return false;
     }
     return true;
-  }), [products, season, priceRange, selectedColors, selectedSizes, onSaleOnly]);
+  }), [products, season, selectedBrands, selectedCategories, priceRange, selectedColors, selectedSizes, onSaleOnly]);
 
   const sidebar = (
     <div className="flex flex-col gap-6">
@@ -110,6 +120,50 @@ export function ProductGrid({ products, locale }: { products: Product[]; locale:
           onChange={setPriceRange}
         />
       </div>
+
+      {/* Brand */}
+      {brandOptions.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">{l.brand}</p>
+          <div className="flex flex-wrap gap-2">
+            {brandOptions.map((b) => (
+              <button
+                key={b}
+                onClick={() => toggle(setSelectedBrands, b)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  selectedBrands.includes(b)
+                    ? "bg-stone-900 dark:bg-amber-500 text-white dark:text-stone-900 border-stone-900 dark:border-amber-500"
+                    : "border-stone-200 text-stone-600 hover:border-stone-400"
+                }`}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Category */}
+      {categoryOptions.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">{l.category}</p>
+          <div className="flex flex-wrap gap-2">
+            {categoryOptions.map((c) => (
+              <button
+                key={c}
+                onClick={() => toggle(setSelectedCategories, c)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  selectedCategories.includes(c)
+                    ? "bg-stone-900 dark:bg-amber-500 text-white dark:text-stone-900 border-stone-900 dark:border-amber-500"
+                    : "border-stone-200 text-stone-600 hover:border-stone-400"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Season */}
       <div className="flex flex-col gap-3">
@@ -138,21 +192,21 @@ export function ProductGrid({ products, locale }: { products: Product[]; locale:
       </div>
 
       {/* Color */}
-      {allColors.length > 0 && (
+      {colorOptions.length > 0 && (
         <div className="flex flex-col gap-3">
           <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">{l.color}</p>
           <div className="flex flex-wrap gap-2">
-            {allColors.map(({ code, name }) => (
+            {colorOptions.map(({ name, hex }) => (
               <button
-                key={code}
-                onClick={() => toggleColor(code)}
+                key={name}
+                onClick={() => toggle(setSelectedColors, name)}
                 title={name}
                 className={`w-7 h-7 rounded-full border-2 transition-all ${
-                  selectedColors.includes(code)
+                  selectedColors.includes(name)
                     ? "border-stone-900 dark:border-amber-400 scale-110 shadow-md opacity-100"
                     : "border-stone-200 opacity-40 hover:opacity-70 hover:border-stone-400"
                 }`}
-                style={{ backgroundColor: code }}
+                style={{ backgroundColor: hex }}
               />
             ))}
           </div>
@@ -167,7 +221,7 @@ export function ProductGrid({ products, locale }: { products: Product[]; locale:
             {allSizes.map((size) => (
               <button
                 key={size}
-                onClick={() => toggleSize(size)}
+                onClick={() => toggle(setSelectedSizes, size)}
                 className={`w-10 h-10 rounded-lg text-xs font-semibold border transition-colors ${
                   selectedSizes.includes(size)
                     ? "bg-stone-900 dark:bg-amber-500 text-white dark:text-stone-900 border-stone-900 dark:border-amber-500"
