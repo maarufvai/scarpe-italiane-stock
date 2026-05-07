@@ -15,7 +15,7 @@ type ProductImage = { id: string; url: string; position: number };
 export type Product = {
   id: string; slug: string; nameIt: string; nameEn: string;
   descIt: string | null; descEn: string | null;
-  brand: string; category: string; season?: string | null; sale?: number; barcode?: string | null;
+  brand: string; categories: string[]; season?: string | null; sale?: number; barcode?: string | null;
   images: ProductImage[]; variants: Variant[];
   createdAt: Date;
 };
@@ -135,7 +135,7 @@ export function ProductsClient({
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium text-stone-900 truncate">{p.nameIt}</p>
-                          <p className="text-xs text-stone-400 truncate">{p.category}</p>
+                          <p className="text-xs text-stone-400 truncate">{p.categories.join(", ")}</p>
                         </div>
                       </div>
                     </td>

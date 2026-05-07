@@ -42,7 +42,8 @@ export async function POST(req: NextRequest) {
     const nameIt = String(first.name_it ?? first.name_en ?? "").trim();
     const nameEn = String(first.name_en ?? "").trim();
     const brand = String(first.brand ?? "").trim();
-    const category = String(first.category ?? "Scarpe").trim();
+    const categoryRaw = String(first.category ?? "").trim();
+    const categories = categoryRaw ? [categoryRaw] : [];
 
     if (!nameIt || !nameEn || !brand) { failed += groupRows.length; continue; }
 
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     try {
       const product = await prisma.product.create({
         data: {
-          slug, nameIt, nameEn, brand, category,
+          slug, nameIt, nameEn, brand, categories,
           variants: { create: variants },
         },
         include: {

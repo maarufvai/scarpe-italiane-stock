@@ -42,10 +42,10 @@ function OptionsPanel({
   }
 
   return (
-    <div className="rounded-xl border bg-white shadow-sm p-5 flex flex-col gap-4">
+    <div className="rounded-xl border bg-white dark:bg-stone-900 dark:border-stone-700 shadow-sm p-5 flex flex-col gap-4">
       <div>
-        <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
-        <p className="text-xs text-zinc-400 mt-0.5">{subtitle}</p>
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-stone-100">{title}</h2>
+        <p className="text-xs text-zinc-400 dark:text-stone-500 mt-0.5">{subtitle}</p>
       </div>
 
       {/* Add row */}
@@ -55,7 +55,7 @@ function OptionsPanel({
             type="color"
             value={hex}
             onChange={(e) => setHex(e.target.value)}
-            className="h-10 w-10 rounded-lg border border-stone-200 cursor-pointer shrink-0"
+            className="h-10 w-10 rounded-lg border border-stone-200 dark:border-stone-600 cursor-pointer shrink-0"
           />
         )}
         <input
@@ -63,12 +63,12 @@ function OptionsPanel({
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
           placeholder={withColor ? "Nome colore / Color name" : "Nome / Name"}
-          className="flex-1 rounded-lg border border-stone-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50"
+          className="flex-1 rounded-lg border border-stone-200 dark:border-stone-600 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50 dark:bg-stone-800 dark:text-stone-100 dark:placeholder-stone-500"
         />
         <button
           onClick={handleAdd}
           disabled={adding || !name.trim()}
-          className="flex items-center gap-1.5 rounded-lg bg-stone-900 hover:bg-stone-700 text-white text-sm font-medium px-3 py-2 disabled:opacity-50 transition-colors shrink-0"
+          className="flex items-center gap-1.5 rounded-lg bg-stone-900 hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300 text-white text-sm font-medium px-3 py-2 disabled:opacity-50 transition-colors shrink-0"
         >
           {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           Aggiungi
@@ -77,25 +77,25 @@ function OptionsPanel({
 
       {/* List */}
       {items.length === 0 ? (
-        <p className="text-xs text-zinc-400 text-center py-4">Nessun elemento. Aggiungine uno.</p>
+        <p className="text-xs text-zinc-400 dark:text-stone-500 text-center py-4">Nessun elemento. Aggiungine uno.</p>
       ) : (
-        <ul className="flex flex-col divide-y divide-stone-100">
+        <ul className="flex flex-col divide-y divide-stone-100 dark:divide-stone-700">
           {items.map((item) => (
             <li key={item.id} className="flex items-center gap-3 py-2.5">
               {"hex" in item && (
                 <span
-                  className="w-5 h-5 rounded-full border border-stone-200 shrink-0"
+                  className="w-5 h-5 rounded-full border border-stone-200 dark:border-stone-600 shrink-0"
                   style={{ backgroundColor: item.hex }}
                 />
               )}
-              <span className="flex-1 text-sm text-zinc-800">{item.name}</span>
+              <span className="flex-1 text-sm text-zinc-800 dark:text-stone-100">{item.name}</span>
               {"hex" in item && (
-                <span className="text-xs font-mono text-zinc-400">{item.hex}</span>
+                <span className="text-xs font-mono text-zinc-400 dark:text-stone-500">{item.hex}</span>
               )}
               <button
                 onClick={() => handleDelete(item.id)}
                 disabled={deletingId === item.id}
-                className="p-1 rounded hover:bg-red-50 text-zinc-300 hover:text-red-500 transition-colors disabled:opacity-40"
+                className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-zinc-300 dark:text-stone-600 hover:text-red-500 transition-colors disabled:opacity-40"
               >
                 {deletingId === item.id
                   ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -166,8 +166,8 @@ export function OpzioniClient({
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-zinc-900">Opzioni / Options</h1>
-      <p className="text-sm text-zinc-500 -mt-4">
+      <h1 className="text-2xl font-bold text-zinc-900 dark:text-stone-100">Opzioni / Options</h1>
+      <p className="text-sm text-zinc-500 dark:text-stone-400 -mt-4">
         Gestisci brand, categorie e colori disponibili nella scheda prodotto e nei filtri del negozio.
       </p>
 

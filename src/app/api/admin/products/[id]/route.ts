@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { nameIt, nameEn, descIt, descEn, brand, category, season, sale, barcode, variants, images } = body;
+  const { nameIt, nameEn, descIt, descEn, brand, categories, season, sale, barcode, variants, images } = body;
 
   // Upsert variants if provided
   if (variants?.length) {
@@ -47,7 +47,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const product = await prisma.product.update({
     where: { id },
-    data: { nameIt, nameEn, descIt, descEn, brand, category, season: season || null, sale: sale ?? 0, barcode: barcode ?? null },
+    data: { nameIt, nameEn, descIt, descEn, brand, categories: Array.isArray(categories) ? categories : [], season: season || null, sale: sale ?? 0, barcode: barcode ?? null },
     include: { variants: true, images: true },
   });
 

@@ -40,7 +40,7 @@ export function ProductDialog({
     descIt: product?.descIt ?? "",
     descEn: product?.descEn ?? "",
     brand: product?.brand ?? "",
-    category: product?.category ?? "",
+    categories: product?.categories ?? [],
     season: (product as { season?: string })?.season ?? "",
     sale: (((product as { sale?: number })?.sale ?? 0) / 100).toFixed(2),
     barcode: (product as { barcode?: string | null })?.barcode ?? "",
@@ -62,6 +62,15 @@ export function ProductDialog({
 
   function setField(k: keyof typeof form, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  function toggleCategory(name: string) {
+    setForm((f) => ({
+      ...f,
+      categories: f.categories.includes(name)
+        ? f.categories.filter((c) => c !== name)
+        : [...f.categories, name],
+    }));
   }
 
   function setVariantField(i: number, k: keyof VariantForm, v: string) {
@@ -162,20 +171,29 @@ export function ProductDialog({
                   )}
                 </select>
               </label>
-              <label className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+              <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
                 <span className="text-xs font-medium text-stone-600">{t.category}</span>
-                <select
-                  value={form.category}
-                  onChange={(e) => setField("category", e.target.value)}
-                  className="rounded-lg border border-stone-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50"
-                >
-                  <option value="">— seleziona / select —</option>
-                  {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-                  {form.category && !categories.includes(form.category) && (
-                    <option value={form.category}>{form.category} (custom)</option>
-                  )}
-                </select>
-              </label>
+                {categories.length === 0 ? (
+                  <p className="text-xs text-stone-400 italic">Aggiungi categorie in Opzioni / Add categories in Options</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => toggleCategory(c)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                          form.categories.includes(c)
+                            ? "bg-stone-900 text-white border-stone-900"
+                            : "border-stone-200 text-stone-600 hover:border-stone-400 bg-stone-50"
+                        }`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-stone-600">{t.price} (€)</span>
                 <input

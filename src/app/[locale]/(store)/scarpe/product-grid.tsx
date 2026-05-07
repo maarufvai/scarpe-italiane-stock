@@ -8,7 +8,7 @@ import { Package, SlidersHorizontal, X } from "lucide-react";
 type Variant = { size: string; color: string; colorCode: string | null; price: number };
 type Product = {
   id: string; slug: string; nameIt: string; nameEn: string;
-  brand: string; category: string; season: string | null; sale: number;
+  brand: string; categories: string[]; season: string | null; sale: number;
   images: { url: string }[];
   variants: Variant[];
 };
@@ -94,7 +94,7 @@ export function ProductGrid({
     if (onSaleOnly && p.sale <= 0) return false;
     if (season && p.season !== season) return false;
     if (selectedBrands.length && !selectedBrands.includes(p.brand)) return false;
-    if (selectedCategories.length && !selectedCategories.includes(p.category)) return false;
+    if (selectedCategories.length && !selectedCategories.some((c) => p.categories.includes(c))) return false;
     const variantPrices = p.variants.map((v) => v.price);
     const minP = Math.min(...variantPrices);
     if (minP < priceRange[0] || minP > priceRange[1]) return false;

@@ -13,7 +13,7 @@ const products = [
     nameIt: "Oxford Derby Classico",
     nameEn: "Classic Oxford Derby",
     brand: "Brunello",
-    category: "Oxford",
+    categories: ["Oxford"],
     descIt: "Scarpa classica in pelle pieno fiore, suola in cuoio, perfetta per occasioni formali.",
     descEn: "Full-grain leather classic oxford, leather sole, perfect for formal occasions.",
     images: [
@@ -34,7 +34,7 @@ const products = [
     nameIt: "Mocassino Milano",
     nameEn: "Milan Loafer",
     brand: "Ferragamo Style",
-    category: "Mocassino",
+    categories: ["Mocassino"],
     descIt: "Mocassino artigianale con nappina, pelle morbida di vitello, fodera in pelle.",
     descEn: "Handcrafted tassel loafer, soft calfskin leather, full leather lining.",
     images: [
@@ -56,7 +56,7 @@ const products = [
     nameIt: "Stivale Chelsea Toscana",
     nameEn: "Tuscany Chelsea Boot",
     brand: "Cuoio di Toscana",
-    category: "Stivale",
+    categories: ["Stivale"],
     descIt: "Chelsea boot in pelle toscana conciata al vegetale, elastici laterali, tacco 3 cm.",
     descEn: "Vegetable-tanned Tuscan leather chelsea boot, side elastics, 3 cm heel.",
     images: [
@@ -78,7 +78,7 @@ const products = [
     nameIt: "Sneaker Urbana Venezia",
     nameEn: "Venice Urban Sneaker",
     brand: "Venezia Sport",
-    category: "Sneaker",
+    categories: ["Sneaker"],
     descIt: "Sneaker in pelle e tela, suola in gomma vulcanizzata, stile minimal italiano.",
     descEn: "Leather and canvas sneaker, vulcanized rubber sole, minimal Italian style.",
     images: [
@@ -103,7 +103,7 @@ const products = [
     nameIt: "Derby Brogue Firenze",
     nameEn: "Florence Brogue Derby",
     brand: "Artigiano Fiorentino",
-    category: "Oxford",
+    categories: ["Oxford"],
     descIt: "Derby brogue in pelle bicolore lavorata a mano, suola Blake, made in Firenze.",
     descEn: "Hand-stitched two-tone brogue derby, Blake sole construction, made in Florence.",
     images: [
@@ -123,7 +123,7 @@ const products = [
     nameIt: "Sandalo Romano",
     nameEn: "Roman Sandal",
     brand: "Romantica",
-    category: "Sandalo",
+    categories: ["Sandalo"],
     descIt: "Sandalo flat in pelle nappa, fasce incrociate, suola in cuoio leggero.",
     descEn: "Flat nappa leather sandal, crisscross straps, lightweight leather sole.",
     images: [
@@ -158,7 +158,7 @@ async function main() {
         nameIt: p.nameIt,
         nameEn: p.nameEn,
         brand: p.brand,
-        category: p.category,
+        categories: p.categories ?? [],
         descIt: p.descIt,
         descEn: p.descEn,
         images: {

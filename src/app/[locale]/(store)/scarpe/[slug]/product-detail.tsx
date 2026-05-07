@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ShoppingBag, ChevronLeft, Package, CheckCircle } from "lucide-react";
@@ -13,7 +13,7 @@ type Variant = {
 type Product = {
   id: string; slug: string; nameIt: string; nameEn: string;
   descIt: string | null; descEn: string | null;
-  brand: string; category: string;
+  brand: string; categories: string[];
   images: { id: string; url: string }[];
   variants: Variant[];
 };
@@ -56,6 +56,17 @@ export function ProductDetail({ product: p, locale }: { product: Product; locale
   );
   const [activeImg, setActiveImg] = useState(0);
   const [added, setAdded] = useState(false);
+  const [zoom, setZoom] = useState({ visible: false, x: 0, y: 0, imgX: 0, imgY: 0 });
+  const imgContainerRef = useRef<HTMLDivElement>(null);
+
+  const currentImageUrl = p.images[activeImg]?.url ?? p.images[0]?.url ?? "";
+
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const imgX = ((e.clientX - rect.left) / rect.width) * 100;
+    const imgY = ((e.clientY - rect.top) / rect.height) * 100;
+    setZoom({ visible: true, x: e.clientX, y: e.clientY, imgX, imgY });
+  }
 
   const selectedVariant = selectedSize && selectedColor
     ? p.variants.find((v) => v.size === selectedSize && v.color === selectedColor)
@@ -104,14 +115,21 @@ export function ProductDetail({ product: p, locale }: { product: Product; locale
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
         {/* Images */}
         <div className="flex flex-col gap-3">
-          <div className="relative aspect-square rounded-2xl overflow-hidden bg-stone-100 border border-stone-200">
+          <div
+            ref={imgContainerRef}
+            className="relative rounded-2xl overflow-hidden bg-stone-100 border border-stone-200 cursor-crosshair"
+            style={{ aspectRatio: "4/5" }}
+            onMouseMove={p.images.length > 0 ? handleMouseMove : undefined}
+            onMouseLeave={() => setZoom((z) => ({ ...z, visible: false }))}
+          >
             {p.images.length > 0 ? (
               <Image
-                src={p.images[activeImg]?.url ?? p.images[0].url}
+                src={currentImageUrl}
                 alt={name}
                 fill
-                className="object-cover"
+                className="object-contain"
                 priority
+                sizes="(max-width: 768px) 100vw, 50vw"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -119,29 +137,48 @@ export function ProductDetail({ product: p, locale }: { product: Product; locale
               </div>
             )}
           </div>
+
           {p.images.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-1">
               {p.images.map((img, i) => (
                 <button
                   key={img.id}
                   onClick={() => setActiveImg(i)}
-                  className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 shrink-0 transition-colors ${
+                  className={`relative w-20 h-20 rounded-lg overflow-hidden border-2 shrink-0 transition-colors ${
                     i === activeImg ? "border-stone-900" : "border-stone-200 hover:border-stone-400"
                   }`}
                 >
-                  <Image src={img.url} alt="" fill className="object-cover" />
+                  <Image src={img.url} alt="" fill className="object-contain bg-stone-100" />
                 </button>
               ))}
             </div>
           )}
         </div>
 
+        {/* Zoom popup — follows cursor, desktop only */}
+        {zoom.visible && currentImageUrl && (
+          <div
+            className="hidden lg:block fixed z-[999] w-80 h-80 rounded-2xl border-2 border-stone-200 shadow-2xl overflow-hidden pointer-events-none"
+            style={{
+              left: zoom.x + 24,
+              top: zoom.y - 160,
+              backgroundImage: `url(${currentImageUrl})`,
+              backgroundPosition: `${zoom.imgX}% ${zoom.imgY}%`,
+              backgroundSize: "350%",
+              backgroundRepeat: "no-repeat",
+              backgroundColor: "#f5f5f4",
+            }}
+          />
+        )}
+
         {/* Info */}
         <div className="flex flex-col gap-5">
           <div>
             <p className="text-sm font-semibold text-stone-400 uppercase tracking-widest">{p.brand}</p>
             <h1 className="text-3xl font-bold text-stone-900 mt-1 leading-tight">{name}</h1>
-            <p className="text-xs text-stone-400 mt-1">{p.category}</p>
+            {p.categories.length > 0 && (
+              <p className="text-xs text-stone-400 mt-1">{p.categories.join(" · ")}</p>
+            )}
           </div>
 
           {/* Price */}
