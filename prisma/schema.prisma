@@ -70,6 +70,7 @@ model Product {
   descEn      String?          @db.Text
   brand       String
   categories  String[]
+  genders     String[]
   season      String?          // SUMMER | WINTER | RAINY
   sale        Int              @default(0)  // discount %, 0 = no discount
   barcode     String?          @unique
@@ -178,6 +179,11 @@ model Color {
   id   String @id @default(cuid())
   name String @unique
   hex  String @default("#000000")
+}
+
+model Gender {
+  id   String @id @default(cuid())
+  name String @unique
 }
 
 // ─── Site Settings ──────────────────────────────────────────────────────────

@@ -113,14 +113,17 @@ export function OpzioniClient({
   brands: initialBrands,
   categories: initialCategories,
   colors: initialColors,
+  genders: initialGenders,
 }: {
   brands: Item[];
   categories: Item[];
   colors: ColorItem[];
+  genders: Item[];
 }) {
   const [brands, setBrands] = useState<Item[]>(initialBrands);
   const [categories, setCategories] = useState<Item[]>(initialCategories);
   const [colors, setColors] = useState<ColorItem[]>(initialColors);
+  const [genders, setGenders] = useState<Item[]>(initialGenders);
 
   async function addBrand(name: string) {
     const res = await fetch("/api/admin/brands", {
@@ -164,6 +167,20 @@ export function OpzioniClient({
     setColors((prev) => prev.filter((c) => c.id !== id));
   }
 
+  async function addGender(name: string) {
+    const res = await fetch("/api/admin/genders", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (data.id) setGenders((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+  }
+
+  async function deleteGender(id: string) {
+    await fetch(`/api/admin/genders/${id}`, { method: "DELETE" });
+    setGenders((prev) => prev.filter((g) => g.id !== id));
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 flex flex-col gap-6">
       <h1 className="text-2xl font-bold text-zinc-900 dark:text-stone-100">Opzioni / Options</h1>
@@ -194,6 +211,14 @@ export function OpzioniClient({
         onAdd={addColor}
         onDelete={deleteColor}
         withColor
+      />
+
+      <OptionsPanel
+        title="Genere / Gender"
+        subtitle="Generi disponibili nella scheda prodotto e filtri shop (es. Uomini, Donne, Bambini)."
+        items={genders}
+        onAdd={addGender}
+        onDelete={deleteGender}
       />
     </div>
   );

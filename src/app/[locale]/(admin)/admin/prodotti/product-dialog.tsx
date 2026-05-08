@@ -22,6 +22,7 @@ export function ProductDialog({
   brands,
   categories,
   colors,
+  genders,
   onClose,
   onSaved,
 }: {
@@ -30,6 +31,7 @@ export function ProductDialog({
   brands: string[];
   categories: string[];
   colors: { name: string; hex: string }[];
+  genders: string[];
   onClose: () => void;
   onSaved: (p: Product) => void;
 }) {
@@ -41,6 +43,7 @@ export function ProductDialog({
     descEn: product?.descEn ?? "",
     brand: product?.brand ?? "",
     categories: product?.categories ?? [],
+    genders: (product as { genders?: string[] })?.genders ?? [],
     season: (product as { season?: string })?.season ?? "",
     sale: (((product as { sale?: number })?.sale ?? 0) / 100).toFixed(2),
     barcode: (product as { barcode?: string | null })?.barcode ?? "",
@@ -70,6 +73,15 @@ export function ProductDialog({
       categories: f.categories.includes(name)
         ? f.categories.filter((c) => c !== name)
         : [...f.categories, name],
+    }));
+  }
+
+  function toggleGender(name: string) {
+    setForm((f) => ({
+      ...f,
+      genders: f.genders.includes(name)
+        ? f.genders.filter((g) => g !== name)
+        : [...f.genders, name],
     }));
   }
 
@@ -189,6 +201,29 @@ export function ProductDialog({
                         }`}
                       >
                         {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+                <span className="text-xs font-medium text-stone-600">Genere / Gender</span>
+                {genders.length === 0 ? (
+                  <p className="text-xs text-stone-400 italic">Aggiungi generi in Opzioni / Add genders in Options</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {genders.map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => toggleGender(g)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                          form.genders.includes(g)
+                            ? "bg-stone-900 text-white border-stone-900"
+                            : "border-stone-200 text-stone-600 hover:border-stone-400 bg-stone-50"
+                        }`}
+                      >
+                        {g}
                       </button>
                     ))}
                   </div>

@@ -7,11 +7,12 @@ export default async function OpzioniPage() {
   const locale = await getLocale();
   await requireAdmin(locale);
 
-  const [brands, categories, colors] = await Promise.all([
+  const [brands, categories, colors, genders] = await Promise.all([
     prisma.brand.findMany({ orderBy: { name: "asc" } }),
     prisma.category.findMany({ orderBy: { name: "asc" } }),
     prisma.color.findMany({ orderBy: { name: "asc" } }),
+    prisma.gender.findMany({ orderBy: { name: "asc" } }),
   ]);
 
-  return <OpzioniClient brands={brands} categories={categories} colors={colors} />;
+  return <OpzioniClient brands={brands} categories={categories} colors={colors} genders={genders} />;
 }

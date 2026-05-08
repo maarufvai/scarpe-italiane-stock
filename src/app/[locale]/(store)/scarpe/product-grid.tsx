@@ -8,7 +8,7 @@ import { Package, SlidersHorizontal, X } from "lucide-react";
 type Variant = { size: string; color: string; colorCode: string | null; price: number };
 type Product = {
   id: string; slug: string; nameIt: string; nameEn: string;
-  brand: string; categories: string[]; season: string | null; sale: number;
+  brand: string; categories: string[]; genders: string[]; season: string | null; sale: number;
   images: { url: string }[];
   variants: Variant[];
 };
@@ -24,7 +24,7 @@ const t = {
     title: "Shop", items: "articoli", filters: "Filtri",
     clearAll: "Azzera filtri", price: "Prezzo", season: "Stagione",
     color: "Colore", size: "Taglia", allSeasons: "Tutte",
-    brand: "Brand", category: "Categoria", all: "Tutti",
+    brand: "Brand", category: "Categoria", gender: "Genere", all: "Tutti",
     noProducts: "Nessun prodotto trovato.",
     onSale: "In saldo", onSaleOnly: "Solo in saldo",
   },
@@ -32,7 +32,7 @@ const t = {
     title: "Shop", items: "items", filters: "Filters",
     clearAll: "Clear filters", price: "Price", season: "Season",
     color: "Color", size: "Size", allSeasons: "All",
-    brand: "Brand", category: "Category", all: "All",
+    brand: "Brand", category: "Category", gender: "Gender", all: "All",
     noProducts: "No products found.",
     onSale: "On sale", onSaleOnly: "On sale only",
   },
@@ -44,12 +44,14 @@ export function ProductGrid({
   brandOptions,
   categoryOptions,
   colorOptions,
+  genderOptions,
 }: {
   products: Product[];
   locale: string;
   brandOptions: string[];
   categoryOptions: string[];
   colorOptions: { name: string; hex: string }[];
+  genderOptions: string[];
 }) {
   const l = locale === "en" ? t.en : t.it;
 
@@ -69,11 +71,12 @@ export function ProductGrid({
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [selectedGenders, setSelectedGenders] = useState<string[]>([]);
   const [onSaleOnly, setOnSaleOnly] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const hasFilters = season || selectedBrands.length || selectedCategories.length ||
-    selectedColors.length || selectedSizes.length || onSaleOnly ||
+    selectedColors.length || selectedSizes.length || selectedGenders.length || onSaleOnly ||
     priceRange[0] > globalMin || priceRange[1] < globalMax;
 
   function clearAll() {
@@ -83,6 +86,7 @@ export function ProductGrid({
     setSelectedCategories([]);
     setSelectedColors([]);
     setSelectedSizes([]);
+    setSelectedGenders([]);
     setOnSaleOnly(false);
   }
 
@@ -95,6 +99,7 @@ export function ProductGrid({
     if (season && p.season !== season) return false;
     if (selectedBrands.length && !selectedBrands.includes(p.brand)) return false;
     if (selectedCategories.length && !selectedCategories.some((c) => p.categories.includes(c))) return false;
+    if (selectedGenders.length && !selectedGenders.some((g) => p.genders.includes(g))) return false;
     const variantPrices = p.variants.map((v) => v.price);
     const minP = Math.min(...variantPrices);
     if (minP < priceRange[0] || minP > priceRange[1]) return false;
@@ -107,7 +112,7 @@ export function ProductGrid({
       if (!selectedSizes.some((s) => pSizes.has(s))) return false;
     }
     return true;
-  }), [products, season, selectedBrands, selectedCategories, priceRange, selectedColors, selectedSizes, onSaleOnly]);
+  }), [products, season, selectedBrands, selectedCategories, selectedGenders, priceRange, selectedColors, selectedSizes, onSaleOnly]);
 
   const sidebar = (
     <div className="flex flex-col gap-6">
@@ -159,6 +164,28 @@ export function ProductGrid({
                 }`}
               >
                 {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Gender */}
+      {genderOptions.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-stone-400">{l.gender}</p>
+          <div className="flex flex-wrap gap-2">
+            {genderOptions.map((g) => (
+              <button
+                key={g}
+                onClick={() => toggle(setSelectedGenders, g)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  selectedGenders.includes(g)
+                    ? "bg-stone-900 dark:bg-amber-500 text-white dark:text-stone-900 border-stone-900 dark:border-amber-500"
+                    : "border-stone-200 text-stone-600 hover:border-stone-400"
+                }`}
+              >
+                {g}
               </button>
             ))}
           </div>

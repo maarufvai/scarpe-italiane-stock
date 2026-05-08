@@ -5,7 +5,7 @@ import { ProductGrid } from "./product-grid";
 export default async function ScarpePage() {
   const locale = await getLocale();
 
-  const [products, brands, categories, colors] = await Promise.all([
+  const [products, brands, categories, colors, genders] = await Promise.all([
     prisma.product.findMany({
       where: { variants: { some: { status: "LIVE", qty: { gt: 0 } } } },
       include: {
@@ -17,6 +17,7 @@ export default async function ScarpePage() {
     prisma.brand.findMany({ orderBy: { name: "asc" } }),
     prisma.category.findMany({ orderBy: { name: "asc" } }),
     prisma.color.findMany({ orderBy: { name: "asc" } }),
+    prisma.gender.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -26,6 +27,7 @@ export default async function ScarpePage() {
       brandOptions={brands.map((b) => b.name)}
       categoryOptions={categories.map((c) => c.name)}
       colorOptions={colors.map((c) => ({ name: c.name, hex: c.hex }))}
+      genderOptions={genders.map((g) => g.name)}
     />
   );
 }

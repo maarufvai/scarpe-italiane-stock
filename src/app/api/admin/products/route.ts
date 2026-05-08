@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   if (!(await auth())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { nameIt, nameEn, descIt, descEn, brand, categories, season, sale, barcode, variants, images } = body;
+  const { nameIt, nameEn, descIt, descEn, brand, categories, genders, season, sale, barcode, variants, images } = body;
 
   const baseSlug = slugify(`${brand || ""}-${nameEn || ""}-${Date.now()}`) || `product-${Date.now()}`;
   let slug = baseSlug;
@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
       descEn: descEn || null,
       brand: brand || "",
       categories: Array.isArray(categories) ? categories : [],
+      genders: Array.isArray(genders) ? genders : [],
       season: season || null,
       sale: sale ?? 0,
       barcode: barcode || null,

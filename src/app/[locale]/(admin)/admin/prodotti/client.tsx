@@ -15,7 +15,7 @@ type ProductImage = { id: string; url: string; position: number };
 export type Product = {
   id: string; slug: string; nameIt: string; nameEn: string;
   descIt: string | null; descEn: string | null;
-  brand: string; categories: string[]; season?: string | null; sale?: number; barcode?: string | null;
+  brand: string; categories: string[]; genders: string[]; season?: string | null; sale?: number; barcode?: string | null;
   images: ProductImage[]; variants: Variant[];
   createdAt: Date;
 };
@@ -25,11 +25,13 @@ export function ProductsClient({
   brands,
   categories,
   colors,
+  genders,
 }: {
   products: Product[];
   brands: string[];
   categories: string[];
   colors: { name: string; hex: string }[];
+  genders: string[];
 }) {
   const locale = useAdminLocale();
   const t = adminT[locale];
@@ -196,6 +198,7 @@ export function ProductsClient({
           brands={brands}
           categories={categories}
           colors={colors}
+          genders={genders}
           onClose={() => { setShowAdd(false); setEditProduct(null); }}
           onSaved={onSaved}
         />
