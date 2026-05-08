@@ -18,21 +18,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // Upsert variants if provided
   if (variants?.length) {
+    const survivingIds: string[] = [];
     for (const v of variants) {
       if (v.id) {
         await prisma.productVariant.update({
           where: { id: v.id },
           data: { size: v.size, color: v.color, colorCode: v.colorCode, price: v.price, qty: v.qty },
         });
+        survivingIds.push(v.id);
       } else {
-        await prisma.productVariant.create({
+        const created = await prisma.productVariant.create({
           data: { productId: id, size: v.size, color: v.color, colorCode: v.colorCode, price: v.price, qty: v.qty },
         });
+        survivingIds.push(created.id);
       }
     }
-    // Remove variants not in the list
-    const incomingIds = variants.filter((v: { id?: string }) => v.id).map((v: { id: string }) => v.id);
-    await prisma.productVariant.deleteMany({ where: { productId: id, id: { notIn: incomingIds } } });
+    // Remove variants not in the surviving set (existing + newly created)
+    await prisma.productVariant.deleteMany({ where: { productId: id, id: { notIn: survivingIds } } });
   }
 
   // Replace images if provided
