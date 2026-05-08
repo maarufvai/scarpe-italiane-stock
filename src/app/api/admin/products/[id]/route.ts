@@ -61,6 +61,18 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!(await auth())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  await prisma.product.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  try {
+    await prisma.product.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e: unknown) {
+    // Prisma P2003 = foreign key constraint: product has order items referencing its variants
+    if (e && typeof e === "object" && "code" in e && (e as { code: string }).code === "P2003") {
+      return NextResponse.json(
+        { error: "Cannot delete — product has associated orders" },
+        { status: 409 }
+      );
+    }
+    const msg = e instanceof Error ? e.message : "Delete failed";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }

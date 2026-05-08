@@ -40,12 +40,23 @@ export function ProductsClient({
   const [showAdd, setShowAdd] = useState(false);
   const [showExcel, setShowExcel] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function deleteProduct(id: string) {
     if (!confirm(t.deleteConfirm)) return;
     setDeleting(id);
-    await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
-    setProducts((p) => p.filter((x) => x.id !== id));
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setDeleteError(body.error ?? `Error ${res.status}`);
+      } else {
+        setProducts((p) => p.filter((x) => x.id !== id));
+      }
+    } catch {
+      setDeleteError("Network error");
+    }
     setDeleting(null);
   }
 
@@ -93,6 +104,12 @@ export function ProductsClient({
           </button>
         </div>
       </div>
+
+      {deleteError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+          {locale === "en" ? "Delete failed" : "Eliminazione fallita"}: {deleteError}
+        </div>
+      )}
 
       {/* Table */}
       {products.length === 0 ? (
