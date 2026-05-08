@@ -39,8 +39,13 @@ export default function LoginPage() {
   const l = labels[locale];
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") ?? `/${locale}/account/ordini`;
+  // NextAuth uses "callbackUrl" param; "redirect" is a legacy fallback
+  const cbParam = searchParams.get("callbackUrl") ?? searchParams.get("redirect");
+  const redirect = cbParam
+    ? (cbParam.startsWith("http") ? new URL(cbParam).pathname : cbParam)
+    : `/${locale}/account/ordini`;
 
+  const urlError = searchParams.get("error");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -75,6 +80,13 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 flex flex-col gap-4">
+          {urlError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+              {locale === "en"
+                ? "Google sign-in failed. Please try again."
+                : "Accesso Google non riuscito. Riprova."}
+            </p>
+          )}
           {/* Google */}
           <button
             type="button"
