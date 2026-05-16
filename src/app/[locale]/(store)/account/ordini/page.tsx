@@ -259,18 +259,19 @@ export default async function AccountOrdersPage() {
                   </div>
                 </div>
 
-                {/* Tracking */}
-                {order.trackingNumber && (
-                  <div className="px-5 py-3 border-t border-stone-100 bg-blue-50/50 flex items-center gap-2 text-sm">
-                    <Truck className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span className="text-stone-600">
-                      {t.tracking}: <span className="font-mono font-medium text-stone-900">{order.trackingNumber}</span>
-                      {order.shippingCarrier && (
-                        <span className="ml-2 text-stone-400">({order.shippingCarrier})</span>
-                      )}
+                {/* Tracking — order ID acts as tracking ID */}
+                <div className="px-5 py-3 border-t border-stone-100 bg-blue-50/50 flex items-center gap-2 text-sm">
+                  <Truck className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span className="text-stone-600">
+                    {t.tracking}:{" "}
+                    <span className="font-mono font-medium text-stone-900">
+                      #{order.id.slice(-8).toUpperCase()}
                     </span>
-                  </div>
-                )}
+                    {order.shippingCarrier && (
+                      <span className="ml-2 text-stone-400">({order.shippingCarrier})</span>
+                    )}
+                  </span>
+                </div>
 
                 {/* Notes */}
                 {order.notes && (

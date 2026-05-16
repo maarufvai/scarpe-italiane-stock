@@ -22,7 +22,9 @@ const labels = {
     title: "Checkout", back: "Torna al carrello",
     customerInfo: "Informazioni cliente",
     firstName: "Nome *", lastName: "Cognome *",
-    email: "Email *", phone: "Telefono",
+    email: "Email *", phone: "Telefono *",
+    guestNotice: "Stai facendo l'ordine come ospite.",
+    guestSignIn: "Hai un account? Accedi",
     shippingAddress: "Indirizzo di spedizione",
     address: "Indirizzo *", city: "Città *",
     province: "Provincia *", postalCode: "CAP *",
@@ -41,7 +43,9 @@ const labels = {
     title: "Checkout", back: "Back to cart",
     customerInfo: "Customer information",
     firstName: "First name *", lastName: "Last name *",
-    email: "Email *", phone: "Phone",
+    email: "Email *", phone: "Phone *",
+    guestNotice: "You are checking out as a guest.",
+    guestSignIn: "Have an account? Sign in",
     shippingAddress: "Shipping address",
     address: "Address *", city: "City *",
     province: "Province *", postalCode: "Postal code *",
@@ -68,7 +72,7 @@ function emptyForm(): CustomerForm {
 }
 
 function isFormValid(f: CustomerForm) {
-  return f.firstName && f.lastName && f.email && f.addressLine1 && f.city && f.province && f.postalCode;
+  return f.firstName && f.lastName && f.email && f.phone && f.addressLine1 && f.city && f.province && f.postalCode;
 }
 
 export default function CheckoutPage() {
@@ -84,13 +88,6 @@ export default function CheckoutPage() {
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [loadingIntent, setLoadingIntent] = useState(false);
   const [stockIssues, setStockIssues] = useState(false);
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (sessionStatus === "unauthenticated") {
-      router.push(`/${locale}/account/login?redirect=/${locale}/checkout`);
-    }
-  }, [sessionStatus, locale, router]);
 
   // Pre-fill email from session
   useEffect(() => {
@@ -194,6 +191,18 @@ export default function CheckoutPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
         {/* Form — 3 cols */}
         <div className="lg:col-span-3 flex flex-col gap-8">
+          {/* Guest notice */}
+          {!session && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-sm text-amber-900">{l.guestNotice}</p>
+              <Link
+                href={`/${locale}/account/login?callbackUrl=/${locale}/checkout`}
+                className="text-sm font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-700"
+              >
+                {l.guestSignIn}
+              </Link>
+            </div>
+          )}
           {/* Customer info */}
           <section className="flex flex-col gap-4">
             <h2 className="text-sm font-semibold uppercase tracking-widest text-stone-400">{l.customerInfo}</h2>

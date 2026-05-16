@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
@@ -58,16 +59,17 @@ export function AdminSidebar({ locale }: { locale: string }) {
   return (
     <aside className="w-56 shrink-0 border-r border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 flex flex-col min-h-screen sticky top-0">
       {/* Logo */}
-      <div className="h-16 flex items-center gap-2.5 px-4 border-b border-stone-100">
-        <div className="w-7 h-7 rounded-sm bg-stone-900 flex items-center justify-center shrink-0">
-          <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4 text-amber-100" stroke="currentColor" strokeWidth="1.5">
-            <path d="M3 17c0 0 2-3 5-3s4 2 7 2 5-2 5-2" strokeLinecap="round"/>
-            <path d="M5 17v-2a7 7 0 0 1 7-7h0a4 4 0 0 1 4 4v2" strokeLinecap="round"/>
-            <path d="M9 10v2" strokeLinecap="round"/>
-          </svg>
-        </div>
+      <div className="h-16 flex items-center gap-2.5 px-4 border-b border-stone-100 dark:border-stone-800">
+        <Image
+          src="/logo.png"
+          alt="Scarpe Italiane"
+          width={36}
+          height={36}
+          className="h-9 w-auto object-contain shrink-0"
+          priority
+        />
         <div className="flex flex-col leading-none min-w-0">
-          <span className="text-xs font-bold text-stone-900 whitespace-nowrap">Scarpe Italiane Stock</span>
+          <span className="text-xs font-bold text-stone-900 dark:text-stone-100 whitespace-nowrap">Scarpe Italiane Stock</span>
           <span className="text-[9px] font-semibold tracking-widest text-stone-400 uppercase">Admin</span>
         </div>
       </div>

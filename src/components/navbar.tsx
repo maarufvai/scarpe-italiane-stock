@@ -31,13 +31,36 @@ export function Navbar({
   const switchedPath = pathname.replace(/^\/(it|en)/, `/${otherLocale}`);
   const isIt = locale === "it";
 
-  // Build mega-menu items: each gender → top-level link
+  // Preferred order of gender nav items
+  const GENDER_ORDER = ["Uomo", "Donna", "Unisex Uomo/Donna", "Bambini", "Unisex bambino"];
+  // Display labels per locale (DB stores Italian; URL uses DB value)
+  const GENDER_LABELS: Record<string, { it: string; en: string }> = {
+    "Uomo": { it: "Uomo", en: "Men" },
+    "Donna": { it: "Donna", en: "Women" },
+    "Unisex Uomo/Donna": { it: "Unisex Uomo/Donna", en: "Unisex Men/Women" },
+    "Bambini": { it: "Bambini", en: "Kids" },
+    "Unisex bambino": { it: "Unisex bambino", en: "Unisex Kids" },
+  };
+  // Drop "Nuova collezione" if seeded as a gender — handled by dedicated nav link
+  const filteredGenders = genders.filter(
+    (g) => g.toLowerCase() !== "nuova collezione" && g.toLowerCase() !== "new collection"
+  );
+  const sortedGenders = [...filteredGenders].sort((a, b) => {
+    const ia = GENDER_ORDER.indexOf(a);
+    const ib = GENDER_ORDER.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
   const navItems: { label: string; gender: string; type: "gender" }[] =
-    genders.map((g) => ({ label: g, gender: g, type: "gender" as const }));
+    sortedGenders.map((g) => ({
+      label: GENDER_LABELS[g]?.[locale as "it" | "en"] ?? g,
+      gender: g,
+      type: "gender" as const,
+    }));
 
   const tNew = isIt ? "Novità" : "New arrivals";
   const tSale = isIt ? "In saldo" : "On sale";
   const tAll = isIt ? "Tutti i prodotti" : "All products";
+  const tNewCollection = isIt ? "Nuova collezione" : "New collection";
   const tHighlights = isIt ? "In evidenza" : "Highlights";
   const tCategories = isIt ? "Categorie" : "Categories";
 
@@ -78,6 +101,17 @@ export function Navbar({
               }`}
             >
               {tAll}
+            </Link>
+          </div>
+          <div
+            onMouseEnter={() => setHovered(null)}
+            className="h-full flex items-center"
+          >
+            <Link
+              href={`/${locale}/scarpe?sort=newest`}
+              className="text-sm font-medium transition-colors py-1 border-b-2 border-transparent text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
+            >
+              {tNewCollection}
             </Link>
           </div>
           {navItems.map((item) => (
@@ -240,14 +274,21 @@ export function Navbar({
           >
             {tAll}
           </Link>
-          {genders.map((g) => (
+          <Link
+            href={`/${locale}/scarpe?sort=newest`}
+            className="text-sm font-medium text-stone-700 dark:text-stone-200 py-2"
+            onClick={() => setOpen(false)}
+          >
+            {tNewCollection}
+          </Link>
+          {navItems.map((item) => (
             <Link
-              key={g}
-              href={`/${locale}/scarpe?gender=${encodeURIComponent(g)}`}
+              key={item.gender}
+              href={`/${locale}/scarpe?gender=${encodeURIComponent(item.gender)}`}
               className="text-sm font-medium text-stone-700 dark:text-stone-200 py-2 pl-3"
               onClick={() => setOpen(false)}
             >
-              {g}
+              {item.label}
             </Link>
           ))}
           <Link

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Bookmark } from "lucide-react";
 
 export default async function OrderConfirmationPage({
   params,
@@ -32,8 +32,16 @@ export default async function OrderConfirmationPage({
           {isIt ? "Ordine confermato!" : "Order confirmed!"}
         </h1>
         <p className="text-stone-500 mt-1 text-sm">
-          {isIt ? `Ordine #${order.id.slice(-8).toUpperCase()}` : `Order #${order.id.slice(-8).toUpperCase()}`}
+          {isIt ? "ID ordine / tracciamento:" : "Order / tracking ID:"}
         </p>
+        <p className="text-2xl font-mono font-bold text-stone-900 tracking-wider mt-1 select-all">
+          #{order.id.slice(-8).toUpperCase()}
+        </p>
+        {order.shippingCarrier && (
+          <p className="text-xs text-stone-400 mt-1">
+            {isIt ? "Corriere" : "Carrier"}: {order.shippingCarrier}
+          </p>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-stone-200 p-5 w-full text-left flex flex-col gap-3">
@@ -63,6 +71,18 @@ export default async function OrderConfirmationPage({
           </div>
         </div>
       </div>
+
+      {/* Guest-only bookmark hint (no userId on order = guest checkout) */}
+      {!order.userId && (
+        <div className="w-full bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3 text-left">
+          <Bookmark className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-900 leading-relaxed">
+            {isIt
+              ? "Salva questo link per consultare lo stato dell'ordine e il tracciamento. Se crei un account con la stessa email, l'ordine apparirà automaticamente nella tua area personale."
+              : "Save this link to check order status and tracking. If you create an account with the same email, this order will automatically appear in your account."}
+          </p>
+        </div>
+      )}
 
       <p className="text-sm text-stone-500">
         {isIt

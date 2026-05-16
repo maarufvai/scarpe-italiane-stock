@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Login required" }, { status: 401 });
 
   const body = await req.json();
   const {
@@ -16,7 +15,8 @@ export async function POST(req: NextRequest) {
     shippingCents = 0,
   } = body;
 
-  if (!items?.length || !email || !firstName || !lastName || !addressLine1 || !city || !postalCode) {
+  // Guest checkout allowed; phone required (used to reach buyer for delivery)
+  if (!items?.length || !email || !firstName || !lastName || !phone || !addressLine1 || !city || !postalCode) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         vatCents,
         totalCents,
         shippingCents,
-        userId: session.user.id,
+        userId: session?.user?.id ?? null,
         email, firstName, lastName,
         phone: phone || null,
         addressLine1,
