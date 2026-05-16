@@ -51,12 +51,14 @@ export default async function OrderConfirmationPage({
           </div>
         ))}
         <div className="border-t border-stone-100 pt-3 flex flex-col gap-1 text-sm">
-          <div className="flex justify-between text-stone-500">
-            <span>{isIt ? "IVA (22%)" : "VAT (22%)"}</span>
-            <span>€{(order.vatCents / 100).toFixed(2)}</span>
-          </div>
+          {order.vatCents > 0 && (
+            <div className="flex justify-between text-stone-500">
+              <span>{isIt ? "IVA (22%)" : "VAT (22%)"}</span>
+              <span>€{(order.vatCents / 100).toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-bold text-stone-900">
-            <span>Totale</span>
+            <span>{isIt ? "Totale" : "Total"}</span>
             <span>€{(order.totalCents / 100).toFixed(2)}</span>
           </div>
         </div>

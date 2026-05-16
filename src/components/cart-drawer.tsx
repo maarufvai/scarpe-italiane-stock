@@ -13,10 +13,8 @@ const t = {
     empty: "Il carrello è vuoto",
     browsing: "Scopri le nostre scarpe",
     subtotal: "Subtotale",
-    vat: "IVA 22%",
     total: "Totale",
     checkout: "Procedi al pagamento",
-    vatNote: "IVA inclusa nel totale",
     outOfStock: "Esaurito",
     onlyX: (n: number) => `Solo ${n} disponibile`,
     resolveIssues: "Risolvi i problemi per procedere",
@@ -26,10 +24,8 @@ const t = {
     empty: "Your cart is empty",
     browsing: "Browse our shoes",
     subtotal: "Subtotal",
-    vat: "VAT 22%",
     total: "Total",
     checkout: "Proceed to checkout",
-    vatNote: "VAT included in total",
     outOfStock: "Out of stock",
     onlyX: (n: number) => `Only ${n} available`,
     resolveIssues: "Resolve issues to proceed",
@@ -42,7 +38,7 @@ export function CartDrawer() {
   const locale = useLocale() as "it" | "en";
   const l = t[locale] ?? t.it;
   const { items, isOpen, closeCart, remove, updateQty } = useCart();
-  const { subtotalCents, vatCents, totalCents } = cartTotals(items);
+  const { subtotalCents, totalCents } = cartTotals(items);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [stockMap, setStockMap] = useState<StockMap>({});
 
@@ -234,16 +230,11 @@ export function CartDrawer() {
                 <span>{l.subtotal}</span>
                 <span>€{(subtotalCents / 100).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-stone-400 text-xs">
-                <span>{l.vat}</span>
-                <span>€{(vatCents / 100).toFixed(2)}</span>
-              </div>
               <div className="flex justify-between font-bold text-stone-900 text-base border-t border-stone-100 pt-2 mt-1">
                 <span>{l.total}</span>
                 <span>€{(totalCents / 100).toFixed(2)}</span>
               </div>
             </div>
-            <p className="text-[10px] text-stone-400">{l.vatNote}</p>
 
             {hasIssues ? (
               <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">

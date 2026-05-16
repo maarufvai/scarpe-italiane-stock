@@ -83,7 +83,5 @@ export const useCart = create<CartStore>()(
 
 export function cartTotals(items: CartItem[]) {
   const subtotalCents = items.reduce((s, i) => s + i.priceCents * i.qty, 0);
-  const vatCents = Math.round(subtotalCents * 0.22);
-  const totalCents = subtotalCents + vatCents;
-  return { subtotalCents, vatCents, totalCents };
+  return { subtotalCents, vatCents: 0, totalCents: subtotalCents };
 }

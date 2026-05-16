@@ -28,13 +28,12 @@ const labels = {
     province: "Provincia *", postalCode: "CAP *",
     notes: "Note ordine",
     orderSummary: "Riepilogo ordine",
-    subtotal: "Subtotale", vat: "IVA (22%)",
+    subtotal: "Subtotale",
     shipping: "Spedizione", free: "Gratuita", total: "Totale",
     payment: "Pagamento",
     payStripe: "Paga con carta",
     processing: "Elaborazione...",
     cartEmpty: "Il carrello è vuoto.",
-    vatNote: "IVA 22% inclusa",
     stockIssue: "Alcuni prodotti nel carrello non sono più disponibili in quantità sufficiente. Torna al carrello per risolvere.",
     backToCart: "Torna al carrello",
   },
@@ -48,13 +47,12 @@ const labels = {
     province: "Province *", postalCode: "Postal code *",
     notes: "Order notes",
     orderSummary: "Order summary",
-    subtotal: "Subtotal", vat: "VAT (22%)",
+    subtotal: "Subtotal",
     shipping: "Shipping", free: "Free", total: "Total",
     payment: "Payment",
     payStripe: "Pay with card",
     processing: "Processing...",
     cartEmpty: "Cart is empty.",
-    vatNote: "VAT 22% included",
     stockIssue: "Some items in your cart are no longer available in the requested quantity. Return to cart to resolve.",
     backToCart: "Back to cart",
   },
@@ -80,7 +78,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
   const { items, clear } = useCart();
-  const { subtotalCents, vatCents, totalCents } = cartTotals(items);
+  const { subtotalCents, totalCents } = cartTotals(items);
   const [form, setForm] = useState<CustomerForm>(emptyForm());
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
@@ -304,16 +302,12 @@ export default function CheckoutPage() {
               <div className="flex justify-between text-stone-500">
                 <span>{l.subtotal}</span><span>€{(subtotalCents / 100).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-stone-400 text-xs">
-                <span>{l.vat}</span><span>€{(vatCents / 100).toFixed(2)}</span>
-              </div>
               <div className="flex justify-between text-stone-500 text-xs">
                 <span>{l.shipping}</span><span className="text-emerald-600">{l.free}</span>
               </div>
               <div className="flex justify-between font-bold text-stone-900 text-base border-t border-stone-100 pt-2">
                 <span>{l.total}</span><span>€{(totalCents / 100).toFixed(2)}</span>
               </div>
-              <p className="text-[10px] text-stone-400">{l.vatNote}</p>
             </div>
           </div>
         </div>

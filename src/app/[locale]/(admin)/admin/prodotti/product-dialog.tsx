@@ -61,6 +61,8 @@ export function ProductDialog({
   const [images, setImages] = useState<string[]>(product?.images.map((i) => i.url) ?? []);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSizeErrors, setShowSizeErrors] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function setField(k: keyof typeof form, v: string) {
@@ -104,23 +106,34 @@ export function ProductDialog({
   }
 
   async function save() {
+    setError(null);
     if (!form.price) return;
+
+    const meaningful = variants.filter((v) => v.size.trim() || v.color || parseInt(v.qty) > 0);
+    if (meaningful.length === 0) {
+      setError("Almeno una variante richiesta / At least one variant required");
+      return;
+    }
+    if (meaningful.some((v) => !v.size.trim())) {
+      setShowSizeErrors(true);
+      setError("Taglia obbligatoria per ogni variante / Size is required for every variant");
+      return;
+    }
+
     setSaving(true);
 
     const payload = {
       ...form,
       sale: Math.round(parseFloat(form.sale) * 100) || 0,
       barcode: form.barcode || null,
-      variants: variants
-        .filter((v) => v.size || v.color || parseInt(v.qty) > 0)
-        .map((v) => ({
-          id: v.id,
-          size: v.size || "",
-          color: v.color || "",
-          colorCode: v.colorCode || null,
-          price: Math.round(parseFloat(form.price) * 100),
-          qty: parseInt(v.qty) || 0,
-        })),
+      variants: meaningful.map((v) => ({
+        id: v.id,
+        size: v.size.trim(),
+        color: v.color || "",
+        colorCode: v.colorCode || null,
+        price: Math.round(parseFloat(form.price) * 100),
+        qty: parseInt(v.qty) || 0,
+      })),
       images,
     };
 
@@ -317,9 +330,15 @@ export function ProductDialog({
               {variants.map((v, i) => (
                 <div key={i} className="grid grid-cols-8 gap-2 items-end p-3 rounded-lg bg-stone-50 border border-stone-100">
                   <div className="col-span-2">
-                    <label className="text-[10px] font-medium text-stone-500 block mb-1">{t.size}</label>
-                    <input value={v.size} onChange={(e) => setVariantField(i, "size", e.target.value)}
-                      placeholder="42" className="input-sm w-full" />
+                    <label className="text-[10px] font-medium text-stone-500 block mb-1">
+                      {t.size} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      value={v.size}
+                      onChange={(e) => { setVariantField(i, "size", e.target.value); if (showSizeErrors) setShowSizeErrors(false); }}
+                      placeholder="42"
+                      className={`input-sm w-full ${showSizeErrors && !v.size.trim() ? "border-red-400 ring-1 ring-red-300" : ""}`}
+                    />
                   </div>
                   <div className="col-span-4">
                     <label className="text-[10px] font-medium text-stone-500 block mb-1">{t.color}</label>
@@ -367,7 +386,13 @@ export function ProductDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-stone-100 sticky bottom-0 bg-white">
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-stone-100 sticky bottom-0 bg-white flex-wrap">
+          {error ? (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex-1 min-w-0">
+              {error}
+            </p>
+          ) : <span />}
+          <div className="flex items-center gap-3 ml-auto">
           <button onClick={onClose} className="px-4 py-2 text-sm text-red-500 hover:text-red-700 transition-colors">
             Esci senza salvare / Exit without saving
           </button>
@@ -379,6 +404,7 @@ export function ProductDialog({
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             {isEdit ? t.save : t.create}
           </button>
+          </div>
         </div>
       </div>
     </div>

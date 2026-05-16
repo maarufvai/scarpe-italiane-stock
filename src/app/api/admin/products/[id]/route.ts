@@ -14,7 +14,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { nameIt, nameEn, descIt, descEn, brand, categories, genders, season, sale, barcode, variants, images } = body;
+  const { descIt, descEn, brand, categories, genders, season, sale, barcode, variants, images } = body;
+  let { nameIt, nameEn } = body;
+
+  // Mirror name across locales if only one provided
+  const itTrim = (nameIt || "").trim();
+  const enTrim = (nameEn || "").trim();
+  if (itTrim && !enTrim) nameEn = itTrim;
+  else if (enTrim && !itTrim) nameIt = enTrim;
 
   // Upsert variants if provided
   if (variants?.length) {
@@ -61,17 +68,37 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!(await auth())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+
+  // Find all order items referencing this product's variants, joined to their order status
+  const variantIds = await prisma.productVariant
+    .findMany({ where: { productId: id }, select: { id: true } })
+    .then((vs) => vs.map((v) => v.id));
+
+  if (variantIds.length > 0) {
+    // Check for any active (non-completed) orders
+    const activeOrder = await prisma.orderItem.findFirst({
+      where: {
+        variantId: { in: variantIds },
+        order: { status: { notIn: ["DELIVERED", "CANCELLED"] } },
+      },
+      select: { order: { select: { status: true } } },
+    });
+
+    if (activeOrder) {
+      return NextResponse.json(
+        { error: `Cannot delete — has an active order (${activeOrder.order.status})` },
+        { status: 409 }
+      );
+    }
+
+    // All referencing orders are DELIVERED or CANCELLED — remove order items so FK is clear
+    await prisma.orderItem.deleteMany({ where: { variantId: { in: variantIds } } });
+  }
+
   try {
     await prisma.product.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
-    // Prisma P2003 = foreign key constraint: product has order items referencing its variants
-    if (e && typeof e === "object" && "code" in e && (e as { code: string }).code === "P2003") {
-      return NextResponse.json(
-        { error: "Cannot delete — product has associated orders" },
-        { status: 409 }
-      );
-    }
     const msg = e instanceof Error ? e.message : "Delete failed";
     return NextResponse.json({ error: msg }, { status: 500 });
   }

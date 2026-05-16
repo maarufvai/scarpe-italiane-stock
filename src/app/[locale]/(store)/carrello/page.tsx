@@ -11,17 +11,15 @@ const t = {
     title: "Carrello", empty: "Il tuo carrello è vuoto.",
     continueShopping: "Continua lo shopping",
     size: "Taglia", color: "Colore",
-    subtotal: "Subtotale", vat: "IVA (22%)", total: "Totale",
+    subtotal: "Subtotale", total: "Totale",
     checkout: "Procedi al pagamento",
-    vatNote: "IVA 22% inclusa nel totale",
   },
   en: {
     title: "Cart", empty: "Your cart is empty.",
     continueShopping: "Continue shopping",
     size: "Size", color: "Color",
-    subtotal: "Subtotal", vat: "VAT (22%)", total: "Total",
+    subtotal: "Subtotal", total: "Total",
     checkout: "Proceed to checkout",
-    vatNote: "VAT 22% included in total",
   },
 } as const;
 
@@ -29,7 +27,7 @@ export default function CartPage() {
   const locale = useLocale() as "it" | "en";
   const l = t[locale] ?? t.it;
   const { items, remove, updateQty } = useCart();
-  const { subtotalCents, vatCents, totalCents } = cartTotals(items);
+  const { subtotalCents, totalCents } = cartTotals(items);
 
   if (items.length === 0) {
     return (
@@ -126,17 +124,11 @@ export default function CartPage() {
                 <span>{l.subtotal}</span>
                 <span>€{(subtotalCents / 100).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-stone-500 text-xs">
-                <span>{l.vat}</span>
-                <span>€{(vatCents / 100).toFixed(2)}</span>
-              </div>
               <div className="border-t border-stone-100 pt-2 flex justify-between font-bold text-stone-900 text-base">
                 <span>{l.total}</span>
                 <span>€{(totalCents / 100).toFixed(2)}</span>
               </div>
             </div>
-
-            <p className="text-[10px] text-stone-400">{l.vatNote}</p>
 
             <Link
               href={`/${locale}/checkout`}

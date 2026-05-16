@@ -3,22 +3,31 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ShopLocationWidget } from "@/components/shop-location-widget";
 import { ScrollReveal } from "@/components/scroll-reveal";
+import { NewArrivalsSlider } from "@/components/new-arrivals-slider";
 import { ArrowRight, MapPin } from "lucide-react";
 
 export default async function HomePage() {
   const t = await getTranslations();
   const locale = await getLocale();
 
-  const [markedLocations, scheduleSetting] = await Promise.all([
+  const [markedLocations, scheduleSetting, newArrivals] = await Promise.all([
     prisma.shopLocation.findMany({ select: { date: true }, orderBy: { date: "asc" } }),
     prisma.siteSetting.findUnique({ where: { key: "monthly_schedule_url" } }),
+    prisma.product.findMany({
+      where: { variants: { some: { status: "LIVE", qty: { gt: 0 } } } },
+      include: {
+        images: { orderBy: { position: "asc" }, take: 1 },
+        variants: { where: { status: "LIVE", qty: { gt: 0 } }, select: { price: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+    }),
   ]);
   const markedDates = markedLocations.map((l) => l.date.toISOString());
   const scheduleUrl = scheduleSetting?.value ?? null;
   const isIt = locale === "it";
 
   const marqueeItems = [
-    isIt ? "IVA 22% inclusa" : "VAT 22% included",
     isIt ? "Spedizione in tutta Italia" : "Shipping across Italy",
     isIt ? "Negozio fisico in Italia" : "Physical shop in Italy",
     isIt ? "Qualità artigianale" : "Artisan quality",
@@ -197,41 +206,33 @@ export default async function HomePage() {
 
       {/* ── Features ─────────────────────────────────────────────────────── */}
       <section className="bg-[#faf9f7] dark:bg-stone-950 border-b border-stone-200 dark:border-stone-800">
-        <div className="max-w-6xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-3">
+        <div className="max-w-6xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-2">
           {[
             {
-              num: "01",
-              title: isIt ? "IVA Inclusa" : "VAT Included",
-              desc: isIt
-                ? "Prezzi trasparenti. IVA 22% italiana già inclusa in ogni acquisto."
-                : "Transparent pricing. Italian VAT 22% already included in every purchase.",
-              delay: 0,
-            },
-            {
-              num: "02",
+              num: "I",
               title: isIt ? "Spedizione Italia" : "Italy Shipping",
               desc: isIt
                 ? "Consegna in tutta Italia con BRT, GLS o Poste Italiane."
                 : "Delivery across Italy via BRT, GLS or Poste Italiane.",
-              delay: 120,
+              delay: 0,
             },
             {
-              num: "03",
+              num: "II",
               title: isIt ? "Negozio Fisico" : "Physical Shop",
               desc: isIt
                 ? "Visita il nostro negozio itinerante in Italia. Controlla il calendario."
                 : "Visit our traveling shop in Italy. Check the calendar below.",
-              delay: 240,
+              delay: 120,
             },
           ].map(({ num, title, desc, delay }, idx) => (
             <ScrollReveal
               key={num}
               delay={delay}
               className={`px-6 py-10 md:py-14 flex flex-col gap-4 ${
-                idx < 2 ? "border-b md:border-b-0 md:border-r border-stone-200 dark:border-stone-800" : ""
-              } ${idx === 0 ? "md:pl-0" : ""} ${idx === 2 ? "md:pr-0" : ""}`}
+                idx < 1 ? "border-b md:border-b-0 md:border-r border-stone-200 dark:border-stone-800" : ""
+              } ${idx === 0 ? "md:pl-0" : ""} ${idx === 1 ? "md:pr-0" : ""}`}
             >
-              <span className="font-display text-6xl font-light leading-none text-stone-200 dark:text-stone-800">
+              <span className="font-display text-7xl font-semibold leading-none tracking-tight text-amber-600 dark:text-amber-400">
                 {num}
               </span>
               <h3 className="text-xs font-bold tracking-[0.2em] uppercase text-stone-900 dark:text-stone-100">
@@ -300,6 +301,9 @@ export default async function HomePage() {
           </div>
         </ScrollReveal>
       </section>
+
+      {/* ── New arrivals slider ──────────────────────────────────────────── */}
+      <NewArrivalsSlider products={newArrivals} locale={locale} isIt={isIt} />
 
     </main>
   );

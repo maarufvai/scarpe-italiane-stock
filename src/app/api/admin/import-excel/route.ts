@@ -23,13 +23,15 @@ export async function POST(req: NextRequest) {
     Object.fromEntries(Object.entries(row).map(([k, v]) => [k.toLowerCase().trim(), v]))
   );
 
-  // Group rows by name_en + brand → one product per group
+  // Group rows by best-available name + brand → one product per group
   const groups = new Map<string, typeof normalised>();
   for (const row of normalised) {
     const nameEn = String(row.name_en ?? "").trim();
+    const nameIt = String(row.name_it ?? "").trim();
+    const groupName = nameEn || nameIt;
     const brand = String(row.brand ?? "").trim();
-    if (!nameEn || !brand) continue;
-    const key = `${nameEn}||${brand}`;
+    if (!groupName || !brand) continue;
+    const key = `${groupName}||${brand}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(row);
   }
@@ -39,8 +41,11 @@ export async function POST(req: NextRequest) {
 
   for (const [, groupRows] of groups) {
     const first = groupRows[0];
-    const nameIt = String(first.name_it ?? first.name_en ?? "").trim();
-    const nameEn = String(first.name_en ?? "").trim();
+    let nameIt = String(first.name_it ?? "").trim();
+    let nameEn = String(first.name_en ?? "").trim();
+    // Mirror across locales if only one provided
+    if (nameIt && !nameEn) nameEn = nameIt;
+    else if (nameEn && !nameIt) nameIt = nameEn;
     const brand = String(first.brand ?? "").trim();
     const categoryRaw = String(first.category ?? "").trim();
     const categories = categoryRaw ? [categoryRaw] : [];

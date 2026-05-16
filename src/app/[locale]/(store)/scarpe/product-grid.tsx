@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Package, SlidersHorizontal, X } from "lucide-react";
+import { Package, SlidersHorizontal, X, ArrowUpDown, Heart } from "lucide-react";
+import { useFavorites } from "@/lib/favorites-store";
 
 type Variant = { size: string; color: string; colorCode: string | null; price: number };
 type Product = {
@@ -11,7 +13,10 @@ type Product = {
   brand: string; categories: string[]; genders: string[]; season: string | null; sale: number;
   images: { url: string }[];
   variants: Variant[];
+  popularity: number;
 };
+
+type SortKey = "newest" | "popular" | "price-asc" | "price-desc" | "discount" | "name-asc";
 
 const SEASONS = [
   { value: "SUMMER", it: "Estate", en: "Summer" },
@@ -27,6 +32,13 @@ const t = {
     brand: "Brand", category: "Categoria", gender: "Genere", all: "Tutti",
     noProducts: "Nessun prodotto trovato.",
     onSale: "In saldo", onSaleOnly: "Solo in saldo",
+    sortBy: "Ordina per",
+    sortNewest: "Più recenti",
+    sortPopular: "Più popolari",
+    sortPriceAsc: "Prezzo: crescente",
+    sortPriceDesc: "Prezzo: decrescente",
+    sortDiscount: "Maggior sconto",
+    sortNameAsc: "Nome A-Z",
   },
   en: {
     title: "Shop", items: "items", filters: "Filters",
@@ -35,6 +47,13 @@ const t = {
     brand: "Brand", category: "Category", gender: "Gender", all: "All",
     noProducts: "No products found.",
     onSale: "On sale", onSaleOnly: "On sale only",
+    sortBy: "Sort by",
+    sortNewest: "Newest",
+    sortPopular: "Most popular",
+    sortPriceAsc: "Price: low to high",
+    sortPriceDesc: "Price: high to low",
+    sortDiscount: "Best discount",
+    sortNameAsc: "Name A-Z",
   },
 } as const;
 
@@ -64,16 +83,33 @@ export function ProductGrid({
     [products]
   );
 
-  // Filter state
+  const searchParams = useSearchParams();
+  const parseList = (key: string) =>
+    searchParams.get(key)?.split(",").filter(Boolean) ?? [];
+
+  // Filter state (initialized from URL search params for deep links)
   const [priceRange, setPriceRange] = useState<[number, number]>([globalMin, globalMax]);
-  const [season, setSeason] = useState("");
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
-  const [selectedGenders, setSelectedGenders] = useState<string[]>([]);
-  const [onSaleOnly, setOnSaleOnly] = useState(false);
+  const [season, setSeason] = useState(searchParams.get("season") ?? "");
+  const [selectedBrands, setSelectedBrands] = useState<string[]>(parseList("brand"));
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(parseList("category"));
+  const [selectedColors, setSelectedColors] = useState<string[]>(parseList("color"));
+  const [selectedSizes, setSelectedSizes] = useState<string[]>(parseList("size"));
+  const [selectedGenders, setSelectedGenders] = useState<string[]>(parseList("gender"));
+  const [onSaleOnly, setOnSaleOnly] = useState(searchParams.get("sale") === "1");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<SortKey>((searchParams.get("sort") as SortKey) || "newest");
+
+  // Re-sync if URL changes (back/forward nav, nav-link click)
+  useEffect(() => {
+    setSeason(searchParams.get("season") ?? "");
+    setSelectedBrands(parseList("brand"));
+    setSelectedCategories(parseList("category"));
+    setSelectedColors(parseList("color"));
+    setSelectedSizes(parseList("size"));
+    setSelectedGenders(parseList("gender"));
+    setOnSaleOnly(searchParams.get("sale") === "1");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const hasFilters = season || selectedBrands.length || selectedCategories.length ||
     selectedColors.length || selectedSizes.length || selectedGenders.length || onSaleOnly ||
@@ -113,6 +149,30 @@ export function ProductGrid({
     }
     return true;
   }), [products, season, selectedBrands, selectedCategories, selectedGenders, priceRange, selectedColors, selectedSizes, onSaleOnly]);
+
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    const minPrice = (p: Product) => Math.min(...p.variants.map((v) => v.price));
+    switch (sortBy) {
+      case "popular":
+        return arr.sort((a, b) => b.popularity - a.popularity);
+      case "price-asc":
+        return arr.sort((a, b) => minPrice(a) - minPrice(b));
+      case "price-desc":
+        return arr.sort((a, b) => minPrice(b) - minPrice(a));
+      case "discount":
+        return arr.sort((a, b) => b.sale - a.sale);
+      case "name-asc":
+        return arr.sort((a, b) => {
+          const na = locale === "en" ? a.nameEn : a.nameIt;
+          const nb = locale === "en" ? b.nameEn : b.nameIt;
+          return (na || "").localeCompare(nb || "");
+        });
+      case "newest":
+      default:
+        return arr; // already createdAt desc from server
+    }
+  }, [filtered, sortBy, locale]);
 
   const sidebar = (
     <div className="flex flex-col gap-6">
@@ -289,20 +349,39 @@ export function ProductGrid({
   return (
     <div className="w-full px-6 py-10">
       {/* Header */}
-      <div className="flex items-end justify-between gap-4 mb-8">
+      <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold text-stone-900">{l.title}</h1>
-          <p className="text-sm text-stone-400 mt-1">{filtered.length} {l.items}</p>
+          <h1 className="text-3xl font-bold text-stone-900 dark:text-stone-100">{l.title}</h1>
+          <p className="text-sm text-stone-400 mt-1">{sorted.length} {l.items}</p>
         </div>
-        {/* Mobile filter toggle */}
-        <button
-          onClick={() => setMobileOpen(true)}
-          className="lg:hidden flex items-center gap-2 border border-stone-200 bg-white hover:bg-stone-50 px-4 py-2 rounded-xl text-sm font-medium text-stone-600 transition-colors"
-        >
-          <SlidersHorizontal className="w-4 h-4" />
-          {l.filters}
-          {hasFilters && <span className="w-2 h-2 rounded-full bg-amber-400" />}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Sort dropdown */}
+          <div className="relative flex items-center gap-2 border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 px-3 py-2 rounded-xl text-sm">
+            <ArrowUpDown className="w-4 h-4 text-stone-400" />
+            <label className="text-xs text-stone-500 dark:text-stone-400 hidden sm:inline">{l.sortBy}:</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortKey)}
+              className="bg-transparent text-sm font-medium text-stone-700 dark:text-stone-200 outline-none cursor-pointer pr-1"
+            >
+              <option value="newest">{l.sortNewest}</option>
+              <option value="popular">{l.sortPopular}</option>
+              <option value="price-asc">{l.sortPriceAsc}</option>
+              <option value="price-desc">{l.sortPriceDesc}</option>
+              <option value="discount">{l.sortDiscount}</option>
+              <option value="name-asc">{l.sortNameAsc}</option>
+            </select>
+          </div>
+          {/* Mobile filter toggle */}
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="lg:hidden flex items-center gap-2 border border-stone-200 bg-white hover:bg-stone-50 px-4 py-2 rounded-xl text-sm font-medium text-stone-600 transition-colors"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {l.filters}
+            {hasFilters && <span className="w-2 h-2 rounded-full bg-amber-400" />}
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-8">
@@ -313,14 +392,14 @@ export function ProductGrid({
 
         {/* Grid */}
         <main className="flex-1 min-w-0">
-          {filtered.length === 0 ? (
+          {sorted.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-24 text-stone-400">
               <Package className="w-10 h-10 opacity-40" />
               <p className="text-sm">{l.noProducts}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
-              {filtered.map((p) => (
+              {sorted.map((p) => (
                 <ProductCard key={p.id} product={p} locale={locale} />
               ))}
             </div>
@@ -440,8 +519,10 @@ function DualRangeSlider({ min, max, value, onChange }: {
 }
 
 function ProductCard({ product: p, locale }: { product: Product; locale: string }) {
-  const name = locale === "en" ? p.nameEn : p.nameIt;
+  const name = (locale === "en" ? p.nameEn : p.nameIt) || p.nameIt || p.nameEn;
   const img = p.images[0]?.url ?? null;
+  const isFav = useFavorites((s) => s.ids.includes(p.id));
+  const toggleFav = useFavorites((s) => s.toggle);
   const minPrice = Math.min(...p.variants.map((v) => v.price));
   const sizes = [...new Set(p.variants.map((v) => v.size))];
   const colors = [...new Set(p.variants.map((v) => v.colorCode).filter(Boolean))];
@@ -462,14 +543,27 @@ function ProductCard({ product: p, locale }: { product: Product; locale: string 
             <Package className="w-8 h-8 text-stone-300" />
           </div>
         )}
-        {/* Sale badge — top right */}
+        {/* Favorite heart — top right */}
+        <button
+          type="button"
+          aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFav(p.id); }}
+          className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm ${
+            isFav
+              ? "bg-red-500 text-white"
+              : "bg-white/90 dark:bg-stone-900/90 text-stone-600 dark:text-stone-300 hover:text-red-500"
+          }`}
+        >
+          <Heart className={`w-4 h-4 ${isFav ? "fill-current" : ""}`} />
+        </button>
+        {/* Sale badge */}
         {onSale && (
-          <span className="absolute top-2 right-2 text-[11px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full shadow">
+          <span className="absolute top-12 right-2 text-[11px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full shadow">
             -{salePct}%
           </span>
         )}
         {seasonLabel && (
-          <span className="absolute top-2 left-2 text-[10px] font-semibold bg-white/90 text-stone-700 px-2 py-0.5 rounded-full">
+          <span className="absolute top-2 left-2 text-[10px] font-semibold bg-white/95 text-stone-700 dark:bg-stone-900/90 dark:text-amber-300 px-2 py-0.5 rounded-full backdrop-blur-sm shadow-sm">
             {seasonLabel}
           </span>
         )}

@@ -23,7 +23,6 @@ const labels = {
     back: "Tutti i prodotti", size: "Taglia", color: "Colore",
     addToCart: "Aggiungi al carrello", added: "Aggiunto!",
     outOfStock: "Esaurito", selectSize: "Seleziona una taglia",
-    vatNote: "IVA 22% inclusa nel prezzo",
     available: "Disponibile", unavailable: "Non disponibile",
     pieces: "pz disponibili",
   },
@@ -31,7 +30,6 @@ const labels = {
     back: "All products", size: "Size", color: "Color",
     addToCart: "Add to cart", added: "Added!",
     outOfStock: "Out of stock", selectSize: "Select a size",
-    vatNote: "VAT 22% included in price",
     available: "Available", unavailable: "Unavailable",
     pieces: "pcs available",
   },
@@ -188,7 +186,6 @@ export function ProductDetail({ product: p, locale }: { product: Product; locale
                 ? `€${(selectedVariant.price / 100).toFixed(2)}`
                 : `da €${(Math.min(...liveVariants.map(v => v.price)) / 100).toFixed(2)}`}
             </p>
-            <p className="text-xs text-stone-400 mt-0.5">{t.vatNote}</p>
           </div>
 
           {/* Color picker */}

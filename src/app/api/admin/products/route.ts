@@ -29,7 +29,14 @@ export async function POST(req: NextRequest) {
   if (!(await auth())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { nameIt, nameEn, descIt, descEn, brand, categories, genders, season, sale, barcode, variants, images } = body;
+  const { descIt, descEn, brand, categories, genders, season, sale, barcode, variants, images } = body;
+  let { nameIt, nameEn } = body;
+
+  // Mirror name across locales if only one provided
+  const itTrim = (nameIt || "").trim();
+  const enTrim = (nameEn || "").trim();
+  if (itTrim && !enTrim) nameEn = itTrim;
+  else if (enTrim && !itTrim) nameIt = enTrim;
 
   const baseSlug = slugify(`${brand || ""}-${nameEn || ""}-${Date.now()}`) || `product-${Date.now()}`;
   let slug = baseSlug;

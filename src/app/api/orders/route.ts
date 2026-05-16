@@ -36,8 +36,8 @@ export async function POST(req: NextRequest) {
       return s + (v?.price ?? 0) * i.qty;
     }, 0
   );
-  const vatCents = Math.round(subtotalCents * 0.22);
-  const totalCents = subtotalCents + vatCents + shippingCents;
+  const vatCents = 0;
+  const totalCents = subtotalCents + shippingCents;
 
   const order = await prisma.$transaction(async (tx) => {
     const o = await tx.order.create({
