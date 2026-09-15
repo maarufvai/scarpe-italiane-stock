@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
-import { Plus, Pencil, Trash2, Package, FileSpreadsheet } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, FileSpreadsheet, Search, X } from "lucide-react";
 import { ProductDialog } from "./product-dialog";
 import { ExcelImportDialog } from "./excel-import-dialog";
 import { useAdminLocale, adminT } from "@/lib/use-admin-locale";
@@ -19,6 +19,35 @@ export type Product = {
   images: ProductImage[]; variants: Variant[];
   createdAt: Date;
 };
+
+function uniqueSorted(values: string[], numeric = false) {
+  return [...new Set(values.filter(Boolean))].sort((a, b) =>
+    numeric && !isNaN(parseFloat(a)) && !isNaN(parseFloat(b))
+      ? parseFloat(a) - parseFloat(b)
+      : a.localeCompare(b)
+  );
+}
+
+function toggle(list: string[], value: string) {
+  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
+
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+        active
+          ? "bg-amber-50 text-amber-700 border-amber-300"
+          : "bg-white text-stone-600 border-stone-200 hover:border-stone-400"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function ProductsClient({
   products: initial,
@@ -41,6 +70,13 @@ export function ProductsClient({
   const [showExcel, setShowExcel] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Filters
+  const [query, setQuery] = useState("");
+  const [sizeFilter, setSizeFilter] = useState<string[]>([]);
+  const [genderFilter, setGenderFilter] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
 
   async function deleteProduct(id: string) {
     if (!confirm(t.deleteConfirm)) return;
@@ -74,8 +110,44 @@ export function ProductsClient({
     setEditProduct(null);
   }
 
+  function clearFilters() {
+    setQuery("");
+    setSizeFilter([]);
+    setGenderFilter([]);
+    setCategoryFilter("");
+    setBrandFilter("");
+  }
+
+  // Only offer values that actually exist on products, so every option returns something.
+  const sizeOptions = useMemo(() => uniqueSorted(products.flatMap((p) => p.variants.map((v) => v.size)), true), [products]);
+  const genderOptions = useMemo(() => uniqueSorted(products.flatMap((p) => p.genders)), [products]);
+  const categoryOptions = useMemo(() => uniqueSorted(products.flatMap((p) => p.categories)), [products]);
+  const brandOptions = useMemo(() => uniqueSorted(products.map((p) => p.brand)), [products]);
+
+  // Each row keeps only the variants matching the size filter, so stock counts answer
+  // questions like "how many size 26 do I have?".
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return products.flatMap((product) => {
+      if (q && ![product.nameIt, product.nameEn, product.brand, product.barcode ?? ""].some((s) => s.toLowerCase().includes(q))) return [];
+      if (categoryFilter && !product.categories.includes(categoryFilter)) return [];
+      if (brandFilter && product.brand !== brandFilter) return [];
+      if (genderFilter.length && !product.genders.some((g) => genderFilter.includes(g))) return [];
+      const variants = sizeFilter.length ? product.variants.filter((v) => sizeFilter.includes(v.size)) : product.variants;
+      if (sizeFilter.length && variants.length === 0) return [];
+      return [{ product, variants }];
+    });
+  }, [products, query, sizeFilter, genderFilter, categoryFilter, brandFilter]);
+
+  const filtersActive = Boolean(query.trim() || sizeFilter.length || genderFilter.length || categoryFilter || brandFilter);
+
   const totalVariants = products.reduce((s, p) => s + p.variants.length, 0);
   const totalQty = products.reduce((s, p) => s + p.variants.reduce((vs, v) => vs + v.qty, 0), 0);
+  const matchedVariants = rows.reduce((s, r) => s + r.variants.length, 0);
+  const matchedQty = rows.reduce((s, r) => s + r.variants.reduce((vs, v) => vs + v.qty, 0), 0);
+
+  const selectClass =
+    "rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:outline-none focus:border-stone-400";
 
   return (
     <div className="p-6 flex flex-col gap-6 max-w-6xl mx-auto">
@@ -111,11 +183,76 @@ export function ProductsClient({
         </div>
       )}
 
+      {/* Filters */}
+      {products.length > 0 && (
+        <div className="bg-white rounded-xl border border-stone-200 p-4 flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t.searchProducts}
+                className={`${selectClass} w-full pl-9`}
+              />
+            </div>
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectClass}>
+              <option value="">{t.allCategories}</option>
+              {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className={selectClass}>
+              <option value="">{t.allBrands}</option>
+              {brandOptions.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+
+          {sizeOptions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-stone-500 uppercase tracking-wide w-16 shrink-0">{t.size}</span>
+              {sizeOptions.map((s) => (
+                <Chip key={s} active={sizeFilter.includes(s)} onClick={() => setSizeFilter((f) => toggle(f, s))}>{s}</Chip>
+              ))}
+            </div>
+          )}
+
+          {genderOptions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-stone-500 uppercase tracking-wide w-16 shrink-0">{t.filterGender}</span>
+              {genderOptions.map((g) => (
+                <Chip key={g} active={genderFilter.includes(g)} onClick={() => setGenderFilter((f) => toggle(f, g))}>{g}</Chip>
+              ))}
+            </div>
+          )}
+
+          {filtersActive && (
+            <div className="flex items-center justify-between gap-3 flex-wrap border-t border-stone-100 pt-3">
+              <p className="text-sm text-stone-600">
+                <span className="text-lg font-bold text-stone-900">{matchedQty} {t.pcs}</span>{" "}
+                · {rows.length} {t.products.toLowerCase()} · {matchedVariants} {t.variants.toLowerCase()}
+              </p>
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-900 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                {t.clearFilters}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Table */}
       {products.length === 0 ? (
         <div className="rounded-xl border border-dashed border-stone-200 bg-white p-16 flex flex-col items-center gap-3 text-stone-400">
           <Package className="w-10 h-10 opacity-40" />
           <p className="text-sm">{t.noProducts}</p>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-stone-200 bg-white p-16 flex flex-col items-center gap-3 text-stone-400">
+          <Search className="w-10 h-10 opacity-40" />
+          <p className="text-sm">{t.noMatches}</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
@@ -131,30 +268,32 @@ export function ProductsClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {products.map((p) => {
+              {rows.map(({ product: p, variants }) => {
                 const img = p.images[0]?.url;
-                const liveVariants = p.variants.filter((v) => v.status === "LIVE" && v.qty > 0).length;
-                const totalStock = p.variants.reduce((s, v) => s + v.qty, 0);
-                const minPrice = p.variants.length
-                  ? Math.min(...p.variants.map((v) => v.price))
+                const totalStock = variants.reduce((s, v) => s + v.qty, 0);
+                const minPrice = variants.length
+                  ? Math.min(...variants.map((v) => v.price))
                   : null;
 
                 return (
                   <tr key={p.id} className="hover:bg-stone-50 transition-colors">
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-stone-100 overflow-hidden shrink-0 border border-stone-200">
+                      <div className="flex items-center gap-4">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-stone-100 overflow-hidden shrink-0 border border-stone-200">
                           {img ? (
-                            <Image src={img} alt={p.nameIt} width={40} height={40} className="w-full h-full object-cover" />
+                            <Image src={img} alt={p.nameIt} width={192} height={192} className="w-full h-full object-contain" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <Package className="w-4 h-4 text-stone-300" />
+                              <Package className="w-8 h-8 text-stone-300" />
                             </div>
                           )}
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium text-stone-900 truncate">{p.nameIt}</p>
                           <p className="text-xs text-stone-400 truncate">{p.categories.join(", ")}</p>
+                          {p.genders.length > 0 && (
+                            <p className="text-xs text-stone-400 truncate">{p.genders.join(", ")}</p>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -166,13 +305,16 @@ export function ProductsClient({
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <div className="flex items-center gap-2">
-                        <span className="text-stone-700">{p.variants.length}</span>
+                        <span className="text-stone-700">{variants.length}</span>
                         {minPrice !== null && (
                           <span className="text-xs text-stone-400">
                             {t.from} €{(minPrice / 100).toFixed(2)}
                           </span>
                         )}
                       </div>
+                      <p className="text-xs text-stone-400 mt-0.5">
+                        {t.size} {uniqueSorted(variants.map((v) => v.size), true).join(", ")}
+                      </p>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${

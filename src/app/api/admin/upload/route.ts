@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createClient } from "@supabase/supabase-js";
+import { trimProductImage } from "@/lib/trim-product-image";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -31,11 +32,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "File too large (max 10 MB)" }, { status: 400 });
   }
 
+  const original = Buffer.from(await file.arrayBuffer());
+  const body = (await trimProductImage(original, file.type)) ?? original;
+
   const name = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
   const { error } = await supabase.storage
     .from("product-images")
-    .upload(name, await file.arrayBuffer(), {
+    .upload(name, body, {
       contentType: file.type,
       upsert: false,
     });
