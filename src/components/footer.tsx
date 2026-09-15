@@ -117,6 +117,18 @@ export async function Footer() {
           <p className="text-sm">
             {isIt ? "Spedizione in tutta Italia" : "Shipping across Italy"}
           </p>
+          <Link
+            href={`/${locale}/termini`}
+            className="text-sm hover:text-stone-200 transition-colors"
+          >
+            {isIt ? "Termini e condizioni" : "Terms & conditions"}
+          </Link>
+          <Link
+            href={`/${locale}/privacy`}
+            className="text-sm hover:text-stone-200 transition-colors"
+          >
+            {isIt ? "Privacy" : "Privacy policy"}
+          </Link>
         </div>
       </div>
 

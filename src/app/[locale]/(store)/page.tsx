@@ -6,13 +6,16 @@ import { ScrollReveal } from "@/components/scroll-reveal";
 import { NewArrivalsSlider } from "@/components/new-arrivals-slider";
 import { ArrowRight, MapPin } from "lucide-react";
 
+// Up to 2 schedule images/PDFs, shown side by side
+const SCHEDULE_KEYS = ["monthly_schedule_url", "monthly_schedule_url_2"];
+
 export default async function HomePage() {
   const t = await getTranslations();
   const locale = await getLocale();
 
-  const [markedLocations, scheduleSetting, newArrivals] = await Promise.all([
+  const [markedLocations, scheduleSettings, newArrivals] = await Promise.all([
     prisma.shopLocation.findMany({ select: { date: true }, orderBy: { date: "asc" } }),
-    prisma.siteSetting.findUnique({ where: { key: "monthly_schedule_url" } }),
+    prisma.siteSetting.findMany({ where: { key: { in: SCHEDULE_KEYS } } }),
     prisma.product.findMany({
       where: { variants: { some: { status: "LIVE", qty: { gt: 0 } } } },
       include: {
@@ -24,7 +27,9 @@ export default async function HomePage() {
     }),
   ]);
   const markedDates = markedLocations.map((l) => l.date.toISOString());
-  const scheduleUrl = scheduleSetting?.value ?? null;
+  const scheduleUrls = SCHEDULE_KEYS.map(
+    (k) => scheduleSettings.find((s) => s.key === k)?.value
+  ).filter((u): u is string => Boolean(u));
   const isIt = locale === "it";
 
   const marqueeItems = [
@@ -266,7 +271,7 @@ export default async function HomePage() {
             </div>
             <ShopLocationWidget markedDates={markedDates} />
 
-            {scheduleUrl && (
+            {scheduleUrls.length > 0 && (
               <div className="flex flex-col gap-4 mt-4">
                 <div className="flex items-center gap-3">
                   <div className="h-px w-8 bg-[#2d6a4f]" />
@@ -279,23 +284,35 @@ export default async function HomePage() {
                     ? "Ecco dove ci troverete durante il mese."
                     : "Here is where you can find us throughout the month."}
                 </p>
-                {scheduleUrl.endsWith(".pdf") ? (
-                  <div className="rounded-xl overflow-hidden border border-stone-200 dark:border-stone-700 shadow-sm">
-                    <iframe
-                      src={scheduleUrl}
-                      width="100%"
-                      height="600"
-                      style={{ border: 0 }}
-                      title="Monthly schedule PDF"
-                    />
-                  </div>
-                ) : (
-                  <img
-                    src={scheduleUrl}
-                    alt={isIt ? "Programma mensile" : "Monthly schedule"}
-                    className="rounded-xl border border-stone-200 dark:border-stone-700 shadow-sm w-full object-contain max-h-[600px]"
-                  />
-                )}
+                <div
+                  className={`grid gap-4 ${
+                    scheduleUrls.length > 1 ? "sm:grid-cols-2" : "grid-cols-1"
+                  }`}
+                >
+                  {scheduleUrls.map((url, i) =>
+                    url.endsWith(".pdf") ? (
+                      <div
+                        key={url}
+                        className="rounded-xl overflow-hidden border border-stone-200 dark:border-stone-700 shadow-sm"
+                      >
+                        <iframe
+                          src={url}
+                          width="100%"
+                          height="600"
+                          style={{ border: 0 }}
+                          title={`Monthly schedule ${i + 1}`}
+                        />
+                      </div>
+                    ) : (
+                      <img
+                        key={url}
+                        src={url}
+                        alt={isIt ? `Programma mensile ${i + 1}` : `Monthly schedule ${i + 1}`}
+                        className="rounded-xl border border-stone-200 dark:border-stone-700 shadow-sm w-full object-contain max-h-[600px]"
+                      />
+                    )
+                  )}
+                </div>
               </div>
             )}
           </div>
