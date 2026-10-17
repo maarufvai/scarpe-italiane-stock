@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAdminApi } from "@/lib/require-admin-api";
 import { prisma } from "@/lib/prisma";
 
 // Slot 1 keeps the historic key so existing rows keep working.
@@ -12,8 +11,8 @@ function keyForSlot(slot: unknown): string | null {
 }
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const rows = await prisma.siteSetting.findMany({ where: { key: { in: [...KEYS] } } });
   const urls = KEYS.map((k) => rows.find((r) => r.key === k)?.value ?? null);
@@ -21,8 +20,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const { url, slot } = await req.json();
   if (!url) return NextResponse.json({ error: "url required" }, { status: 400 });
@@ -39,8 +38,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const key = keyForSlot(req.nextUrl.searchParams.get("slot"));
   if (!key) return NextResponse.json({ error: "slot must be 1 or 2" }, { status: 400 });

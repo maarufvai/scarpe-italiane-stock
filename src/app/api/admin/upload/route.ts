@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAdminApi } from "@/lib/require-admin-api";
 import { createClient } from "@supabase/supabase-js";
 import { trimProductImage } from "@/lib/trim-product-image";
 
@@ -11,8 +10,8 @@ const supabase = createClient(
 
 // POST /api/admin/upload — multipart/form-data, field: file
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const form = await req.formData();
   const file = form.get("file") as File | null;

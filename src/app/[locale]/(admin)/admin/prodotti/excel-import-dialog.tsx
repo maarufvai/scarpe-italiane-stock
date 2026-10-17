@@ -6,7 +6,7 @@ import type { Product } from "./client";
 import type { adminT } from "@/lib/use-admin-locale";
 
 type T = typeof adminT["it"] | typeof adminT["en"];
-type ImportResult = { success: number; failed: number; products: Product[] };
+type ImportResult = { success: number; failed: number; errors?: string[]; products: Product[] };
 
 export function ExcelImportDialog({
   t,
@@ -31,7 +31,7 @@ export function ExcelImportDialog({
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch("/api/admin/import-excel", { method: "POST", body: fd });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ error: `Error ${res.status}` }));
       if (!res.ok) throw new Error(data.error ?? "Import failed");
       setResult(data);
     } catch (e) {
@@ -44,7 +44,7 @@ export function ExcelImportDialog({
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto flex flex-col">
 
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
           <h2 className="text-lg font-bold text-stone-900">{t.importTitle}</h2>
@@ -93,7 +93,7 @@ export function ExcelImportDialog({
           )}
 
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
-            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFile(f); }} />
 
           {error && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-red-700">
@@ -111,6 +111,11 @@ export function ExcelImportDialog({
                   {result.failed > 0 && <p className="text-amber-700 mt-0.5">{t.importFailed(result.failed)}</p>}
                 </div>
               </div>
+              {result.errors && result.errors.length > 0 && (
+                <ul className="max-h-40 overflow-y-auto bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-800 flex flex-col gap-1">
+                  {result.errors.map((e, i) => <li key={i}>{e}</li>)}
+                </ul>
+              )}
               <button
                 onClick={() => onImported(result.products)}
                 className="bg-stone-900 hover:bg-stone-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"

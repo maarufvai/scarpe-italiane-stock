@@ -1,19 +1,30 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { X, Plus, Trash2, Loader2, Upload, ImageIcon } from "lucide-react";
 import type { Product } from "./client";
 import type { adminT } from "@/lib/use-admin-locale";
+import { shrinkImage } from "@/lib/shrink-image";
 
 type T = typeof adminT["it"] | typeof adminT["en"];
 
+// price is a per-variant override in euros; empty means "use the main price"
 type VariantForm = {
-  id?: string; size: string; color: string; colorCode: string; qty: string;
+  id?: string; size: string; color: string; colorCode: string; qty: string; price: string;
 };
 
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
 function emptyVariant(): VariantForm {
-  return { size: "", color: "", colorCode: "#000000", qty: "1" };
+  return { size: "", color: "", colorCode: "#000000", qty: "1", price: "" };
+}
+
+// "99,50" and "99.50" both → 9950 cents; null when not a valid amount
+function euroToCents(value: string): number | null {
+  const s = value.trim().replace(",", ".");
+  if (!/^\d+(\.\d{1,2})?$/.test(s)) return null;
+  return Math.round(parseFloat(s) * 100);
 }
 
 export function ProductDialog({
@@ -36,6 +47,7 @@ export function ProductDialog({
   onSaved: (p: Product) => void;
 }) {
   const isEdit = !!product;
+  const basePrice = product?.variants[0]?.price;
   const [form, setForm] = useState({
     nameIt: product?.nameIt ?? "",
     nameEn: product?.nameEn ?? "",
@@ -43,11 +55,11 @@ export function ProductDialog({
     descEn: product?.descEn ?? "",
     brand: product?.brand ?? "",
     categories: product?.categories ?? [],
-    genders: (product as { genders?: string[] })?.genders ?? [],
-    season: (product as { season?: string })?.season ?? "",
-    sale: (((product as { sale?: number })?.sale ?? 0) / 100).toFixed(2),
-    barcode: (product as { barcode?: string | null })?.barcode ?? "",
-    price: product?.variants[0] ? (product.variants[0].price / 100).toFixed(2) : "",
+    genders: product?.genders ?? [],
+    season: product?.season ?? "",
+    sale: ((product?.sale ?? 0) / 100).toFixed(2),
+    barcode: product?.barcode ?? "",
+    price: basePrice !== undefined ? (basePrice / 100).toFixed(2) : "",
   });
   const [variants, setVariants] = useState<VariantForm[]>(
     product?.variants.map((v) => ({
@@ -56,6 +68,8 @@ export function ProductDialog({
       color: v.color,
       colorCode: v.colorCode ?? "#000000",
       qty: v.qty.toString(),
+      // Keep variants that differ from the main price, so saving doesn't flatten them
+      price: v.price !== basePrice ? (v.price / 100).toFixed(2) : "",
     })) ?? [emptyVariant()]
   );
   const [images, setImages] = useState<string[]>(product?.images.map((i) => i.url) ?? []);
@@ -63,13 +77,32 @@ export function ProductDialog({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSizeErrors, setShowSizeErrors] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  function requestClose() {
+    if (dirty && !confirm("Uscire senza salvare? / Discard unsaved changes?")) return;
+    onClose();
+  }
+
+  // Escape closes (with the same unsaved-changes guard)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (dirty && !confirm("Uscire senza salvare? / Discard unsaved changes?")) return;
+      onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dirty, onClose]);
+
   function setField(k: keyof typeof form, v: string) {
+    setDirty(true);
     setForm((f) => ({ ...f, [k]: v }));
   }
 
   function toggleCategory(name: string) {
+    setDirty(true);
     setForm((f) => ({
       ...f,
       categories: f.categories.includes(name)
@@ -79,6 +112,7 @@ export function ProductDialog({
   }
 
   function toggleGender(name: string) {
+    setDirty(true);
     setForm((f) => ({
       ...f,
       genders: f.genders.includes(name)
@@ -88,94 +122,145 @@ export function ProductDialog({
   }
 
   function setVariantField(i: number, k: keyof VariantForm, v: string) {
+    setDirty(true);
     setVariants((vs) => vs.map((vr, idx) => idx === i ? { ...vr, [k]: v } : vr));
   }
 
-  async function uploadImages(files: FileList) {
-    setUploading(true);
-    const urls: string[] = [];
-    for (const file of Array.from(files)) {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (data.url) urls.push(data.url);
+  async function uploadOne(original: File): Promise<string> {
+    const file = await shrinkImage(original);
+    if (file.size > MAX_UPLOAD_BYTES) throw new Error(`${file.name}: max 10 MB`);
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.url) {
+      throw new Error(`${file.name}: ${data.error ?? (res.status === 413 ? "file too large" : `error ${res.status}`)}`);
     }
-    setImages((prev) => [...prev, ...urls]);
-    setUploading(false);
+    return data.url;
+  }
+
+  async function uploadImages(files: File[]) {
+    setUploading(true);
+    setError(null);
+    try {
+      // Two at a time — decoding many full-size photos at once can run a phone out of memory
+      const results: PromiseSettledResult<string>[] = new Array(files.length);
+      let next = 0;
+      const worker = async () => {
+        while (next < files.length) {
+          const i = next++;
+          results[i] = await uploadOne(files[i]).then(
+            (value) => ({ status: "fulfilled" as const, value }),
+            (reason) => ({ status: "rejected" as const, reason })
+          );
+        }
+      };
+      await Promise.all([worker(), worker()]);
+      const urls = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+      const failures = results.flatMap((r) => (r.status === "rejected" ? [(r.reason as Error).message] : []));
+      if (urls.length) {
+        setDirty(true);
+        setImages((prev) => [...prev, ...urls]);
+      }
+      if (failures.length) setError(`Caricamento fallito / Upload failed — ${failures.join("; ")}`);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function validate(): string | null {
+    if (!form.nameIt.trim() && !form.nameEn.trim()) return "Nome obbligatorio / Name is required";
+
+    const mainPrice = euroToCents(form.price);
+    if (mainPrice === null || mainPrice === 0) return "Prezzo non valido / Enter a valid price";
+
+    const meaningful = variants.filter((v) => v.size.trim() || v.color || parseInt(v.qty) > 0);
+    if (meaningful.length === 0) return "Almeno una variante richiesta / At least one variant required";
+    if (meaningful.some((v) => !v.size.trim())) {
+      setShowSizeErrors(true);
+      return "Taglia obbligatoria per ogni variante / Size is required for every variant";
+    }
+    if (meaningful.some((v) => !/^\d+$/.test(v.qty.trim() || "0"))) {
+      return "Quantità non valida / Invalid quantity";
+    }
+    if (meaningful.some((v) => v.price.trim() && !euroToCents(v.price))) {
+      return "Prezzo variante non valido / Invalid variant price";
+    }
+    const keys = meaningful.map((v) => `${v.size.trim().toLowerCase()}|${v.color.toLowerCase()}`);
+    if (new Set(keys).size !== keys.length) {
+      return "Due varianti con stessa taglia e colore / Two variants have the same size and color";
+    }
+
+    const sale = euroToCents(form.sale || "0");
+    if (sale === null) return "Sconto non valido / Invalid sale amount";
+    const minPrice = Math.min(...meaningful.map((v) => euroToCents(v.price) || mainPrice));
+    if (sale >= minPrice) return "Lo sconto supera il prezzo / Sale must be less than the price";
+    return null;
   }
 
   async function save() {
     setError(null);
-    if (!form.price) return;
+    const problem = validate();
+    if (problem) {
+      setError(problem);
+      return;
+    }
 
+    const mainPrice = euroToCents(form.price)!;
     const meaningful = variants.filter((v) => v.size.trim() || v.color || parseInt(v.qty) > 0);
-    if (meaningful.length === 0) {
-      setError("Almeno una variante richiesta / At least one variant required");
-      return;
-    }
-    if (meaningful.some((v) => !v.size.trim())) {
-      setShowSizeErrors(true);
-      setError("Taglia obbligatoria per ogni variante / Size is required for every variant");
-      return;
-    }
-
-    setSaving(true);
-
     const payload = {
       ...form,
-      sale: Math.round(parseFloat(form.sale) * 100) || 0,
-      barcode: form.barcode || null,
+      sale: euroToCents(form.sale || "0") ?? 0,
+      barcode: form.barcode.trim() || null,
       variants: meaningful.map((v) => ({
         id: v.id,
         size: v.size.trim(),
         color: v.color || "",
         colorCode: v.colorCode || null,
-        price: Math.round(parseFloat(form.price) * 100),
+        price: euroToCents(v.price) || mainPrice,
         qty: parseInt(v.qty) || 0,
       })),
       images,
     };
 
-    const res = await fetch(
-      isEdit ? `/api/admin/products/${product.id}` : "/api/admin/products",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+    setSaving(true);
+    try {
+      const res = await fetch(
+        isEdit ? `/api/admin/products/${product.id}` : "/api/admin/products",
+        {
+          method: isEdit ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? `Errore / Error ${res.status}`);
+        return;
       }
-    );
-
-    if (res.ok) {
-      // For PATCH, re-fetch full product to get updated variants+images
-      if (isEdit) {
-        const all = await fetch("/api/admin/products");
-        const allData = await all.json();
-        const updated = allData.find((p: Product) => p.id === product.id);
-        if (updated) onSaved(updated);
-        else onSaved(await res.json());
-      } else {
-        onSaved(await res.json());
-      }
+      onSaved(data);
+    } catch {
+      setError("Errore di rete, riprova / Network error, please try again");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center sm:p-4">
+      <div className="bg-white sm:rounded-2xl shadow-2xl w-full max-w-2xl h-dvh sm:h-auto sm:max-h-[90dvh] overflow-y-auto flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100 sticky top-0 bg-white z-10">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-stone-100 sticky top-0 bg-white z-10">
           <h2 className="text-lg font-bold text-stone-900">
             {isEdit ? t.editProduct : t.newProduct}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-stone-100 transition-colors">
+          <button onClick={requestClose} className="p-2 -mr-2 rounded-lg hover:bg-stone-100 transition-colors" aria-label="Close">
             <X className="w-5 h-5 text-stone-500" />
           </button>
         </div>
 
-        <div className="p-6 flex flex-col gap-6">
+        <div className="p-4 sm:p-6 flex flex-col gap-6 flex-1">
           {/* Basic info */}
           <section className="flex flex-col gap-4">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-stone-400">{t.info}</h3>
@@ -187,7 +272,7 @@ export function ProductDialog({
                 <select
                   value={form.brand}
                   onChange={(e) => setField("brand", e.target.value)}
-                  className="rounded-lg border border-stone-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50"
+                  className="rounded-lg border border-stone-200 px-3 py-2 text-base sm:text-sm outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50"
                 >
                   <option value="">— seleziona / select —</option>
                   {brands.map((b) => <option key={b} value={b}>{b}</option>)}
@@ -207,7 +292,7 @@ export function ProductDialog({
                         key={c}
                         type="button"
                         onClick={() => toggleCategory(c)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                           form.categories.includes(c)
                             ? "bg-stone-900 text-white border-stone-900"
                             : "border-stone-200 text-stone-600 hover:border-stone-400 bg-stone-50"
@@ -230,7 +315,7 @@ export function ProductDialog({
                         key={g}
                         type="button"
                         onClick={() => toggleGender(g)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                           form.genders.includes(g)
                             ? "bg-stone-900 text-white border-stone-900"
                             : "border-stone-200 text-stone-600 hover:border-stone-400 bg-stone-50"
@@ -243,13 +328,13 @@ export function ProductDialog({
                 )}
               </div>
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-stone-600">{t.price} (€)</span>
+                <span className="text-xs font-medium text-stone-600">{t.price} (€) <span className="text-red-500">*</span></span>
                 <input
-                  type="number" step="0.01" min="0"
+                  type="text" inputMode="decimal"
                   value={form.price}
                   onChange={(e) => setField("price", e.target.value)}
-                  placeholder="99.00"
-                  className="rounded-lg border border-stone-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50 w-full"
+                  placeholder="99,00"
+                  className="rounded-lg border border-stone-200 px-3 py-2 text-base sm:text-sm outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50 w-full"
                 />
               </label>
               <label className="flex flex-col gap-1.5">
@@ -257,7 +342,7 @@ export function ProductDialog({
                 <select
                   value={form.season}
                   onChange={(e) => setField("season", e.target.value)}
-                  className="rounded-xl border border-stone-200 px-3 py-2.5 text-sm bg-stone-50 outline-none focus:ring-2 focus:ring-stone-900"
+                  className="rounded-lg border border-stone-200 px-3 py-2 text-base sm:text-sm bg-stone-50 outline-none focus:ring-2 focus:ring-stone-900"
                 >
                   <option value="">—</option>
                   <option value="SUMMER">Estate / Summer</option>
@@ -268,13 +353,22 @@ export function ProductDialog({
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-stone-600">Sconto / Sale (€)</span>
                 <input
-                  type="number" min="0" step="0.01"
+                  type="text" inputMode="decimal"
                   value={form.sale}
                   onChange={(e) => setField("sale", e.target.value)}
-                  className="rounded-xl border border-stone-200 px-3 py-2.5 text-sm bg-stone-50 outline-none focus:ring-2 focus:ring-stone-900"
+                  className="rounded-lg border border-stone-200 px-3 py-2 text-base sm:text-sm bg-stone-50 outline-none focus:ring-2 focus:ring-stone-900"
                 />
               </label>
-              <Field label="Barcode (EAN)" value={form.barcode} onChange={(v) => setField("barcode", v)} placeholder="1234567890123" />
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-stone-600">Barcode (EAN)</span>
+                <input
+                  inputMode="numeric"
+                  value={form.barcode}
+                  onChange={(e) => setField("barcode", e.target.value)}
+                  placeholder="1234567890123"
+                  className="rounded-lg border border-stone-200 px-3 py-2 text-base sm:text-sm outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50 w-full"
+                />
+              </label>
             </div>
             <Field label={t.descIt} value={form.descIt} onChange={(v) => setField("descIt", v)} multiline placeholder="Descrizione in italiano..." />
             <Field label={t.descEn} value={form.descEn} onChange={(v) => setField("descEn", v)} multiline placeholder="English description..." />
@@ -285,17 +379,21 @@ export function ProductDialog({
             <h3 className="text-xs font-semibold uppercase tracking-widest text-stone-400">{t.images}</h3>
             <div className="flex flex-wrap gap-2">
               {images.map((url, i) => (
-                <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-stone-200 group">
+                <div key={url} className="relative w-20 h-20 rounded-lg overflow-hidden border border-stone-200">
                   <Image src={url} alt="" width={80} height={80} className="w-full h-full object-cover" />
+                  {/* Always visible — touch screens have no hover */}
                   <button
-                    onClick={() => setImages((imgs) => imgs.filter((_, idx) => idx !== i))}
-                    className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                    type="button"
+                    onClick={() => { setDirty(true); setImages((imgs) => imgs.filter((_, idx) => idx !== i)); }}
+                    className="absolute top-1 right-1 p-1.5 rounded-full bg-black/60 hover:bg-red-600 transition-colors"
+                    aria-label="Remove image"
                   >
-                    <Trash2 className="w-4 h-4 text-white" />
+                    <Trash2 className="w-3.5 h-3.5 text-white" />
                   </button>
                 </div>
               ))}
               <button
+                type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
                 className="w-20 h-20 rounded-lg border-2 border-dashed border-stone-200 hover:border-stone-400 flex flex-col items-center justify-center gap-1 text-stone-400 hover:text-stone-600 transition-colors"
@@ -304,8 +402,12 @@ export function ProductDialog({
                 <span className="text-[10px]">{uploading ? "..." : t.upload}</span>
               </button>
             </div>
-            <input ref={fileRef} type="file" multiple accept="image/*" className="hidden"
-              onChange={(e) => e.target.files && uploadImages(e.target.files)} />
+            <input ref={fileRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif,image/gif" className="hidden"
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                e.target.value = ""; // allow picking the same file again
+                if (files.length) uploadImages(files);
+              }} />
             {images.length === 0 && (
               <div className="flex items-center gap-2 text-xs text-stone-400">
                 <ImageIcon className="w-3.5 h-3.5" />
@@ -319,8 +421,9 @@ export function ProductDialog({
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold uppercase tracking-widest text-stone-400">{t.variantsLabel}</h3>
               <button
-                onClick={() => setVariants((vs) => [...vs, emptyVariant()])}
-                className="flex items-center gap-1 text-xs text-stone-600 hover:text-stone-900 transition-colors"
+                type="button"
+                onClick={() => { setDirty(true); setVariants((vs) => [...vs, emptyVariant()]); }}
+                className="flex items-center gap-1 text-xs text-stone-600 hover:text-stone-900 transition-colors py-2"
               >
                 <Plus className="w-3.5 h-3.5" /> {t.addVariant}
               </button>
@@ -328,20 +431,21 @@ export function ProductDialog({
 
             <div className="flex flex-col gap-2">
               {variants.map((v, i) => (
-                <div key={i} className="grid grid-cols-8 gap-2 items-end p-3 rounded-lg bg-stone-50 border border-stone-100">
-                  <div className="col-span-2">
-                    <label className="text-[10px] font-medium text-stone-500 block mb-1">
+                <div key={v.id ?? `new-${i}`} className="grid grid-cols-12 gap-2 items-end p-3 rounded-lg bg-stone-50 border border-stone-100">
+                  <div className="col-span-4 sm:col-span-2">
+                    <label className="text-[11px] font-medium text-stone-500 block mb-1">
                       {t.size} <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={v.size}
                       onChange={(e) => { setVariantField(i, "size", e.target.value); if (showSizeErrors) setShowSizeErrors(false); }}
                       placeholder="42"
+                      inputMode="decimal"
                       className={`input-sm w-full ${showSizeErrors && !v.size.trim() ? "border-red-400 ring-1 ring-red-300" : ""}`}
                     />
                   </div>
-                  <div className="col-span-4">
-                    <label className="text-[10px] font-medium text-stone-500 block mb-1">{t.color}</label>
+                  <div className="col-span-12 sm:col-span-5 order-last sm:order-none">
+                    <label className="text-[11px] font-medium text-stone-500 block mb-1">{t.color}</label>
                     <div className="flex items-center gap-1.5">
                       <span
                         className="w-6 h-6 rounded-full border border-stone-200 shrink-0"
@@ -351,6 +455,7 @@ export function ProductDialog({
                         value={v.color}
                         onChange={(e) => {
                           const selected = colors.find((c) => c.name === e.target.value);
+                          setDirty(true);
                           setVariants((vs) => vs.map((vr, idx) =>
                             idx === i
                               ? { ...vr, color: e.target.value, colorCode: selected?.hex ?? vr.colorCode }
@@ -367,43 +472,56 @@ export function ProductDialog({
                       </select>
                     </div>
                   </div>
-                  <div className="col-span-1">
-                    <label className="text-[10px] font-medium text-stone-500 block mb-1">{t.qty}</label>
+                  <div className="col-span-3 sm:col-span-2">
+                    <label className="text-[11px] font-medium text-stone-500 block mb-1">{t.qty}</label>
                     <input value={v.qty} onChange={(e) => setVariantField(i, "qty", e.target.value)}
-                      type="number" min="0" placeholder="1" className="input-sm w-full" />
+                      type="number" min="0" inputMode="numeric" placeholder="1" className="input-sm w-full" />
                   </div>
-                    <div className="col-span-1 flex justify-end">
-                    <button onClick={() => setVariants((vs) => vs.filter((_, idx) => idx !== i))}
+                  <div className="col-span-4 sm:col-span-2">
+                    <label className="text-[11px] font-medium text-stone-500 block mb-1">€</label>
+                    <input value={v.price} onChange={(e) => setVariantField(i, "price", e.target.value)}
+                      inputMode="decimal" placeholder={form.price || "—"} className="input-sm w-full"
+                      title="Lascia vuoto per usare il prezzo principale / Leave empty to use the main price" />
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => { setDirty(true); setVariants((vs) => vs.filter((_, idx) => idx !== i)); }}
                       disabled={variants.length === 1}
-                      className="p-1.5 rounded hover:bg-red-50 text-stone-300 hover:text-red-500 transition-colors disabled:opacity-30">
-                      <Trash2 className="w-3.5 h-3.5" />
+                      aria-label="Remove variant"
+                      className="p-2 -mr-1 rounded hover:bg-red-50 text-stone-400 hover:text-red-500 transition-colors disabled:opacity-30">
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
               ))}
             </div>
+            <p className="text-[11px] text-stone-400">
+              € vuoto = prezzo principale / Empty € = main price
+            </p>
           </section>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-stone-100 sticky bottom-0 bg-white flex-wrap">
-          {error ? (
-            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex-1 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-stone-100 sticky bottom-0 bg-white pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {error && (
+            <p role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex-1 min-w-0">
               {error}
             </p>
-          ) : <span />}
-          <div className="flex items-center gap-3 ml-auto">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-red-500 hover:text-red-700 transition-colors">
-            Esci senza salvare / Exit without saving
-          </button>
-          <button
-            onClick={save}
-            disabled={saving || !form.price}
-            className="flex items-center gap-2 bg-stone-900 hover:bg-stone-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-            {isEdit ? t.save : t.create}
-          </button>
+          )}
+          <div className="flex items-center gap-3 sm:ml-auto">
+            <button type="button" onClick={requestClose} className="flex-1 sm:flex-none px-4 py-2.5 text-sm text-red-500 hover:text-red-700 transition-colors">
+              {isEdit ? "Annulla / Cancel" : "Esci / Exit"}
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving || uploading}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-stone-900 hover:bg-stone-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isEdit ? t.save : t.create}
+            </button>
           </div>
         </div>
       </div>
@@ -416,7 +534,7 @@ function Field({ label, value, onChange, placeholder, multiline }: {
   onChange: (v: string) => void;
   placeholder?: string; multiline?: boolean;
 }) {
-  const cls = "rounded-lg border border-stone-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50 w-full";
+  const cls = "rounded-lg border border-stone-200 px-3 py-2 text-base sm:text-sm outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50 w-full";
   return (
     <label className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
       <span className="text-xs font-medium text-stone-600">{label}</span>

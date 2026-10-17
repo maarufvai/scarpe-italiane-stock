@@ -1,11 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
-  Package, ShoppingBag, MapPin, ScanBarcode, LogOut, LayoutDashboard, Users, Settings2,
+  Package, ShoppingBag, MapPin, ScanBarcode, LogOut, LayoutDashboard, Users, Settings2, Menu, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
@@ -49,6 +50,8 @@ export function AdminSidebar({ locale }: { locale: string }) {
   const router = useRouter();
   const t = labels[locale as "it" | "en"] ?? labels.it;
   const otherLocale = locale === "it" ? "en" : "it";
+  // Below md the sidebar is an off-canvas drawer opened from the top bar
+  const [open, setOpen] = useState(false);
 
   function switchLocale() {
     // Replace /it/ or /en/ prefix in pathname
@@ -57,9 +60,35 @@ export function AdminSidebar({ locale }: { locale: string }) {
   }
 
   return (
-    <aside className="w-56 shrink-0 border-r border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 flex flex-col min-h-screen sticky top-0">
+    <>
+    {/* Mobile top bar */}
+    <div className="md:hidden sticky top-0 z-30 h-14 flex items-center gap-3 px-4 border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900">
+      <button
+        onClick={() => setOpen(true)}
+        className="p-2 -ml-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800"
+        aria-label="Menu"
+      >
+        <Menu className="w-5 h-5 text-stone-700 dark:text-stone-200" />
+      </button>
+      <span className="text-sm font-bold text-stone-900 dark:text-stone-100">Scarpe Italiane Stock</span>
+    </div>
+
+    {open && <div className="md:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setOpen(false)} />}
+
+    <aside className={cn(
+      "w-64 md:w-56 shrink-0 border-r border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 flex flex-col",
+      "fixed inset-y-0 left-0 z-50 h-dvh overflow-y-auto transition-transform md:translate-x-0 md:sticky md:top-0 md:z-auto md:h-auto md:min-h-screen",
+      open ? "translate-x-0" : "-translate-x-full"
+    )}>
       {/* Logo */}
       <div className="h-16 flex items-center gap-2.5 px-4 border-b border-stone-100 dark:border-stone-800">
+        <button
+          onClick={() => setOpen(false)}
+          className="md:hidden order-last ml-auto p-2 -mr-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800"
+          aria-label="Close menu"
+        >
+          <X className="w-5 h-5 text-stone-500" />
+        </button>
         <Image
           src="/logo.png"
           alt="Scarpe Italiane"
@@ -82,6 +111,7 @@ export function AdminSidebar({ locale }: { locale: string }) {
             <Link
               key={href}
               href={href}
+              onClick={() => setOpen(false)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                 active
@@ -155,5 +185,6 @@ export function AdminSidebar({ locale }: { locale: string }) {
         </button>
       </div>
     </aside>
+    </>
   );
 }

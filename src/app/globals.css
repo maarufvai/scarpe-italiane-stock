@@ -76,6 +76,13 @@ body {
   outline: none;
   background: white;
 }
+/* iOS Safari zooms into inputs under 16px on focus */
+@media (max-width: 639px) {
+  .input-sm {
+    font-size: 16px;
+    padding: 0.5rem;
+  }
+}
 .input-sm:focus {
   outline: none;
   box-shadow: 0 0 0 2px var(--ring);

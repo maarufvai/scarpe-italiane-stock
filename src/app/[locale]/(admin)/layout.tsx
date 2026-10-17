@@ -19,7 +19,7 @@ export default async function AdminLayout({
   return (
     <SessionProvider session={session}>
       {session ? (
-        <div className="min-h-screen flex bg-stone-50">
+        <div className="min-h-screen flex flex-col md:flex-row bg-stone-50">
           <AdminSidebar locale={locale} />
           <main className="flex-1 min-w-0 overflow-auto">{children}</main>
         </div>

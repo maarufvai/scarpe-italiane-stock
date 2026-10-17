@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAdminApi } from "@/lib/require-admin-api";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slugify";
-
-async function auth() {
-  const s = await getServerSession(authOptions);
-  return !!s;
-}
+import { parseProductInput, prismaErrorResponse } from "@/lib/product-input";
 
 // GET /api/admin/products
 export async function GET() {
-  if (!(await auth())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
   const products = await prisma.product.findMany({
     include: {
@@ -26,61 +22,36 @@ export async function GET() {
 
 // POST /api/admin/products — create product
 export async function POST(req: NextRequest) {
-  if (!(await auth())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await requireAdminApi();
+  if (denied) return denied;
 
-  const body = await req.json();
-  const { descIt, descEn, brand, categories, genders, season, sale, barcode, variants, images } = body;
-  let { nameIt, nameEn } = body;
+  const parsed = parseProductInput(await req.json().catch(() => null));
+  if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const { variants, images, ...fields } = parsed.data;
 
-  // Mirror name across locales if only one provided
-  const itTrim = (nameIt || "").trim();
-  const enTrim = (nameEn || "").trim();
-  if (itTrim && !enTrim) nameEn = itTrim;
-  else if (enTrim && !itTrim) nameIt = enTrim;
+  // Timestamp + random suffix keeps slugs unique even for simultaneous creates
+  const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const slug = slugify(`${fields.brand}-${fields.nameEn}-${suffix}`) || `product-${suffix}`;
 
-  const baseSlug = slugify(`${brand || ""}-${nameEn || ""}-${Date.now()}`) || `product-${Date.now()}`;
-  let slug = baseSlug;
-  let suffix = 1;
-  while (await prisma.product.findUnique({ where: { slug } })) {
-    slug = `${baseSlug}-${suffix++}`;
+  try {
+    const product = await prisma.product.create({
+      data: {
+        ...fields,
+        slug,
+        variants: {
+          create: variants.map(({ size, color, colorCode, price, qty }) => ({ size, color, colorCode, price, qty })),
+        },
+        images: images.length
+          ? { create: images.map((url, i) => ({ url, position: i })) }
+          : undefined,
+      },
+      include: {
+        images: { orderBy: { position: "asc" } },
+        variants: { orderBy: [{ size: "asc" }, { color: "asc" }] },
+      },
+    });
+    return NextResponse.json(product, { status: 201 });
+  } catch (e) {
+    return prismaErrorResponse(e);
   }
-
-  const product = await prisma.product.create({
-    data: {
-      slug,
-      nameIt: nameIt || "",
-      nameEn: nameEn || "",
-      descIt: descIt || null,
-      descEn: descEn || null,
-      brand: brand || "",
-      categories: Array.isArray(categories) ? categories : [],
-      genders: Array.isArray(genders) ? genders : [],
-      season: season || null,
-      sale: sale ?? 0,
-      barcode: barcode || null,
-      variants: variants?.length
-        ? {
-            create: variants.map((v: {
-              size: string; color: string; colorCode?: string;
-              price: number; qty: number;
-            }) => ({
-              size: v.size,
-              color: v.color,
-              colorCode: v.colorCode || null,
-              price: v.price,
-              qty: v.qty,
-            })),
-          }
-        : undefined,
-      images: images?.length
-        ? { create: images.map((url: string, i: number) => ({ url, position: i })) }
-        : undefined,
-    },
-    include: {
-      variants: true,
-      images: true,
-    },
-  });
-
-  return NextResponse.json(product, { status: 201 });
 }

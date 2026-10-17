@@ -150,7 +150,7 @@ export function ProductsClient({
     "rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:outline-none focus:border-stone-400";
 
   return (
-    <div className="p-6 flex flex-col gap-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 flex flex-col gap-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
@@ -159,7 +159,7 @@ export function ProductsClient({
             {products.length} {t.products.toLowerCase()} · {totalVariants} {t.variants.toLowerCase()} · {totalQty} {t.pcs}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setShowExcel(true)}
             className="flex items-center gap-2 border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
@@ -277,8 +277,8 @@ export function ProductsClient({
 
                 return (
                   <tr key={p.id} className="hover:bg-stone-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-4">
+                    <td className="px-3 sm:px-4 py-3">
+                      <div className="flex items-center gap-3 sm:gap-4">
                         <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-stone-100 overflow-hidden shrink-0 border border-stone-200">
                           {img ? (
                             <Image src={img} alt={p.nameIt} width={192} height={192} className="w-full h-full object-contain" />
@@ -294,6 +294,11 @@ export function ProductsClient({
                           {p.genders.length > 0 && (
                             <p className="text-xs text-stone-400 truncate">{p.genders.join(", ")}</p>
                           )}
+                          {/* Stock + price columns are hidden on phones — show a summary here instead */}
+                          <p className="md:hidden text-xs text-stone-500 mt-1">
+                            {totalStock} {t.pcs}
+                            {minPrice !== null && <> · €{(minPrice / 100).toFixed(2)}</>}
+                          </p>
                         </div>
                       </div>
                     </td>
@@ -329,14 +334,14 @@ export function ProductsClient({
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => setEditProduct(p)}
-                          className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500 hover:text-stone-800 transition-colors"
+                          className="p-2.5 sm:p-1.5 rounded-lg hover:bg-stone-100 text-stone-500 hover:text-stone-800 transition-colors"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => deleteProduct(p.id)}
                           disabled={deleting === p.id}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-stone-400 hover:text-red-600 transition-colors"
+                          className="p-2.5 sm:p-1.5 rounded-lg hover:bg-red-50 text-stone-400 hover:text-red-600 transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
